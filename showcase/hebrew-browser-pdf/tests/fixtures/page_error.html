@@ -1,9 +1,0 @@
-<!doctype html>
-<html lang="he" dir="rtl"><head><meta charset="utf-8"></head>
-<body>
-<!-- Known-bad fixture for src/render.mjs's fail-loud contract: this page throws
-     an uncaught JS error at load. render.mjs must collect it as a page error and
-     exit NONZERO (proven in scripts/test_all.sh). A clean page exits 0. -->
-<p>עמוד עם שגיאת JavaScript מכוונת.</p>
-<script>throw new Error('intentional page error for the render fail-loud gate');</script>
-</body></html>

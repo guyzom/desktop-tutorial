@@ -1,9 +1,0 @@
-*.aux
-*.log
-*.toc
-*.out
-*.fls
-*.fdb_latexmk
-*.synctex.gz
-docs/*.pdf
-node_modules/

@@ -1,5 +1,0 @@
-{
-  "_comment": "Code-listing keyword sets (data for codeBlock lang lookup). Minimal — extend per language as needed.",
-  "mips": ["addi", "sw", "lw", "add", "lb", "sb", "beq", "j"],
-  "python": ["def", "return"]
-}
