@@ -1,1399 +1,870 @@
-(function () {
+(() => {
   "use strict";
 
-  /* ==========================================================
-   * צבי נינג'ה: הרפתקה בביוב
-   * Kid-first (age 4+) one-finger side-scrolling adventure.
-   * Player fixed near the right, world scrolls right-to-left.
-   * ========================================================== */
-
-  // ---------- Assets ----------
-  const ASSETS = {
-    leo: "assets/leo.png",
-    raph: "assets/raph.png",
-    don: "assets/don.png",
-    mikey: "assets/mikey.png",
-    pizza: "assets/pizza.png",
-    gold: "assets/pizza-gold.png",
-    broccoli: "assets/broccoli.png",
-  };
-
-  // ---------- Turtle data ----------
-  const TURTLES = [
-    {
-      id: "leo",
-      name: "ליאו",
-      mask: "כחול · מנהיג",
-      img: ASSETS.leo,
-      cheer: "ליאו תופס!",
-      superName: "סערת חרבות",
-    },
-    {
-      id: "raph",
-      name: "ראף",
-      mask: "אדום · חזק",
-      img: ASSETS.raph,
-      cheer: "ראף בום!",
-      superName: "רעש אדמה",
-    },
-    {
-      id: "don",
-      name: "דוני",
-      mask: "סגול · גאון",
-      img: ASSETS.don,
-      cheer: "דוני חכם!",
-      superName: "מגן חכם",
-    },
-    {
-      id: "mikey",
-      name: "מיקי",
-      mask: "כתום · כיף",
-      img: ASSETS.mikey,
-      cheer: "מיקי קואבונגה!",
-      superName: "גשם פיצות",
-    },
-  ];
-
-  // ---------- Stickers ----------
-  const STICKERS = [
-    { id: "pizza", label: "פיצה", img: ASSETS.pizza },
-    { id: "gold", label: "פיצת זהב", img: ASSETS.gold },
-    { id: "broccoli", label: "ברוקולי", img: ASSETS.broccoli },
-    { id: "leo", label: "ליאו", img: ASSETS.leo },
-    { id: "raph", label: "ראף", img: ASSETS.raph },
-    { id: "don", label: "דוני", img: ASSETS.don },
-    { id: "mikey", label: "מיקי", img: ASSETS.mikey },
-    { id: "sewer", label: "ביוב", img: null },
-  ];
-
-  // ---------- Stage config ----------
-  // World 1: הביוב הישן  (stages 0-3)
-  // World 2: מטבח הרשע    (stages 4-7)
-  // World 3: גג ניו יורק  (stages 8-11)
-  // Each: 3 normal + 1 boss.
-  // Entities' `at` is a progress fraction 0..1 for the stage timeline.
-  const STAGES = [
-    // ------- WORLD 1 -------
-    {
-      id: 0, world: 1, name: "הביוב הישן",
-      lengthMs: 26000,
-      enemies: [
-        { at: 0.14, lane: 1, type: "scout", hp: 1 },
-        { at: 0.22, lane: 0, type: "scout", hp: 1 },
-        { at: 0.32, lane: 2, type: "scout", hp: 1 },
-        { at: 0.44, lane: 1, type: "scout", hp: 1 },
-        { at: 0.56, lane: 0, type: "scout", hp: 1 },
-        { at: 0.66, lane: 2, type: "scout", hp: 1 },
-        { at: 0.78, lane: 1, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.10, lane: 0 }, { at: 0.18, lane: 2 }, { at: 0.28, lane: 1 },
-        { at: 0.40, lane: 2 }, { at: 0.50, lane: 0, gold: true },
-        { at: 0.60, lane: 1 }, { at: 0.72, lane: 0 }, { at: 0.84, lane: 2 },
-      ],
-    },
-    {
-      id: 1, world: 1, name: "מנהרות הזרם",
-      lengthMs: 30000,
-      enemies: [
-        { at: 0.12, lane: 1, type: "scout", hp: 1 },
-        { at: 0.22, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.34, lane: 0, type: "scout", hp: 1 },
-        { at: 0.44, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.54, lane: 2, type: "scout", hp: 1 },
-        { at: 0.64, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.74, lane: 1, type: "scout", hp: 1 },
-        { at: 0.84, lane: 2, type: "bomber", hp: 2 },
-      ],
-      pickups: [
-        { at: 0.08, lane: 2 }, { at: 0.18, lane: 0 }, { at: 0.30, lane: 1 },
-        { at: 0.42, lane: 2 }, { at: 0.52, lane: 1, gold: true },
-        { at: 0.62, lane: 0 }, { at: 0.72, lane: 2 }, { at: 0.80, lane: 1 },
-        { at: 0.90, lane: 0, gold: true },
-      ],
-    },
-    {
-      id: 2, world: 1, name: "מפלי הביוב",
-      lengthMs: 32000,
-      enemies: [
-        { at: 0.10, lane: 2, type: "scout", hp: 1 },
-        { at: 0.18, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.28, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.38, lane: 2, type: "scout", hp: 1 },
-        { at: 0.46, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.56, lane: 0, type: "scout", hp: 1 },
-        { at: 0.64, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.72, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.82, lane: 0, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 0 }, { at: 0.14, lane: 2 }, { at: 0.24, lane: 1 },
-        { at: 0.34, lane: 0, gold: true }, { at: 0.44, lane: 2 },
-        { at: 0.54, lane: 1 }, { at: 0.66, lane: 0 }, { at: 0.76, lane: 2, gold: true },
-        { at: 0.86, lane: 1 }, { at: 0.92, lane: 0 },
-      ],
-    },
-    {
-      id: 3, world: 1, name: "ראש הביוב",
-      lengthMs: 34000,
-      boss: { hp: 5, name: "מפלצת הבוץ" },
-      enemies: [
-        { at: 0.15, lane: 1, type: "scout", hp: 1 },
-        { at: 0.28, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.42, lane: 0, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.10, lane: 2 }, { at: 0.22, lane: 1 }, { at: 0.34, lane: 0, gold: true },
-        { at: 0.48, lane: 2 }, { at: 0.60, lane: 1 }, { at: 0.72, lane: 0, gold: true },
-      ],
-    },
-
-    // ------- WORLD 2 -------
-    {
-      id: 4, world: 2, name: "מטבח פוט",
-      lengthMs: 30000,
-      enemies: [
-        { at: 0.12, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.22, lane: 1, type: "scout", hp: 1 },
-        { at: 0.32, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.42, lane: 0, type: "scout", hp: 1 },
-        { at: 0.52, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.62, lane: 2, type: "scout", hp: 1 },
-        { at: 0.72, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.82, lane: 0, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.08, lane: 1 }, { at: 0.18, lane: 2 }, { at: 0.28, lane: 0 },
-        { at: 0.40, lane: 1, gold: true }, { at: 0.50, lane: 2 },
-        { at: 0.60, lane: 0 }, { at: 0.70, lane: 1 }, { at: 0.80, lane: 2, gold: true },
-        { at: 0.90, lane: 0 },
-      ],
-    },
-    {
-      id: 5, world: 2, name: "מסעדת הפיצה הרעה",
-      lengthMs: 32000,
-      enemies: [
-        { at: 0.10, lane: 2, type: "scout", hp: 1 },
-        { at: 0.18, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.26, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.36, lane: 2, type: "scout", hp: 1 },
-        { at: 0.46, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.56, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.66, lane: 2, type: "scout", hp: 1 },
-        { at: 0.76, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.86, lane: 0, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 0 }, { at: 0.16, lane: 2 }, { at: 0.28, lane: 1 },
-        { at: 0.40, lane: 0, gold: true }, { at: 0.52, lane: 2 },
-        { at: 0.64, lane: 1, gold: true }, { at: 0.74, lane: 0 },
-        { at: 0.84, lane: 2 }, { at: 0.92, lane: 1 },
-      ],
-    },
-    {
-      id: 6, world: 2, name: "מחסן הברוקולי",
-      lengthMs: 34000,
-      enemies: [
-        { at: 0.10, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.18, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.26, lane: 2, type: "scout", hp: 1 },
-        { at: 0.34, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.42, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.52, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.62, lane: 1, type: "scout", hp: 1 },
-        { at: 0.70, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.80, lane: 2, type: "bomber", hp: 2 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 2 }, { at: 0.14, lane: 1 }, { at: 0.22, lane: 0 },
-        { at: 0.32, lane: 1, gold: true }, { at: 0.44, lane: 0 },
-        { at: 0.56, lane: 2 }, { at: 0.66, lane: 1, gold: true },
-        { at: 0.76, lane: 0 }, { at: 0.88, lane: 2, gold: true },
-      ],
-    },
-    {
-      id: 7, world: 2, name: "השף פוט",
-      lengthMs: 36000,
-      boss: { hp: 6, name: "השף פוט" },
-      enemies: [
-        { at: 0.14, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.28, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.42, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.56, lane: 1, type: "scout", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.08, lane: 2 }, { at: 0.20, lane: 1 }, { at: 0.34, lane: 0, gold: true },
-        { at: 0.48, lane: 2 }, { at: 0.60, lane: 1 }, { at: 0.74, lane: 0, gold: true },
-      ],
-    },
-
-    // ------- WORLD 3 -------
-    {
-      id: 8, world: 3, name: "גגות מנהטן",
-      lengthMs: 32000,
-      enemies: [
-        { at: 0.10, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.18, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.28, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.38, lane: 0, type: "scout", hp: 1 },
-        { at: 0.48, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.58, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.68, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.78, lane: 2, type: "scout", hp: 1 },
-        { at: 0.86, lane: 1, type: "ninja", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 1 }, { at: 0.14, lane: 0 }, { at: 0.24, lane: 2 },
-        { at: 0.34, lane: 1, gold: true }, { at: 0.44, lane: 0 },
-        { at: 0.54, lane: 2 }, { at: 0.64, lane: 1 }, { at: 0.74, lane: 0, gold: true },
-        { at: 0.86, lane: 2 }, { at: 0.94, lane: 1 },
-      ],
-    },
-    {
-      id: 9, world: 3, name: "צינורות הענן",
-      lengthMs: 34000,
-      enemies: [
-        { at: 0.08, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.16, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.24, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.32, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.42, lane: 1, type: "scout", hp: 1 },
-        { at: 0.52, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.62, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.72, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.82, lane: 0, type: "ninja", hp: 1 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 0 }, { at: 0.14, lane: 2 }, { at: 0.24, lane: 1 },
-        { at: 0.34, lane: 0, gold: true }, { at: 0.44, lane: 2 },
-        { at: 0.56, lane: 1 }, { at: 0.66, lane: 0 }, { at: 0.76, lane: 2, gold: true },
-        { at: 0.88, lane: 1, gold: true },
-      ],
-    },
-    {
-      id: 10, world: 3, name: "מגדל הצללים",
-      lengthMs: 36000,
-      enemies: [
-        { at: 0.08, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.16, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.24, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.32, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.40, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.50, lane: 0, type: "bomber", hp: 2 },
-        { at: 0.60, lane: 1, type: "bomber", hp: 2 },
-        { at: 0.70, lane: 2, type: "ninja", hp: 1 },
-        { at: 0.80, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.88, lane: 1, type: "bomber", hp: 2 },
-      ],
-      pickups: [
-        { at: 0.06, lane: 2 }, { at: 0.14, lane: 0 }, { at: 0.24, lane: 1 },
-        { at: 0.34, lane: 2 }, { at: 0.44, lane: 0, gold: true },
-        { at: 0.54, lane: 1 }, { at: 0.66, lane: 2, gold: true },
-        { at: 0.76, lane: 0 }, { at: 0.86, lane: 1, gold: true },
-      ],
-    },
-    {
-      id: 11, world: 3, name: "שרדר!",
-      lengthMs: 40000,
-      boss: { hp: 8, name: "שרדר" },
-      enemies: [
-        { at: 0.14, lane: 1, type: "ninja", hp: 1 },
-        { at: 0.28, lane: 2, type: "bomber", hp: 2 },
-        { at: 0.42, lane: 0, type: "ninja", hp: 1 },
-        { at: 0.56, lane: 1, type: "bomber", hp: 2 },
-      ],
-      pickups: [
-        { at: 0.10, lane: 2 }, { at: 0.22, lane: 1, gold: true },
-        { at: 0.34, lane: 0 }, { at: 0.46, lane: 2, gold: true },
-        { at: 0.60, lane: 1 }, { at: 0.74, lane: 0, gold: true },
-      ],
-    },
-  ];
-
-  // ---------- Persistence ----------
-  const SAVE_KEY = "tmnt-sewer-save";
-
-  function defaultSave() {
-    return {
-      unlocked: 0,
-      stars: new Array(STAGES.length).fill(0),
-      stickers: [],
-      turtleId: null,
-      attempts: new Array(STAGES.length).fill(0),
-    };
+  if (!window.THREE || !window.TMNTMeshes) {
+    console.error("Three.js / meshes missing");
+    return;
   }
 
+  const M = window.TMNTMeshes;
+  const LANES_X = [-2.2, 0, 2.2];
+  const SUPER_COST = 8;
+  const SAVE_KEY = "tmnt-3d-save";
+
+  const TURTLES = [
+    { id: "leo", name: "ליאו", mask: "כחול · מנהיג", color: 0x2f6bff, superName: "סערת חרבות" },
+    { id: "raph", name: "ראף", mask: "אדום · חזק", color: 0xe53935, superName: "רעש אדמה" },
+    { id: "don", name: "דוני", mask: "סגול · גאון", color: 0x9b59d0, superName: "מגן חכם" },
+    { id: "mikey", name: "מיקי", mask: "כתום · כיף", color: 0xff8f1f, superName: "גשם פיצות" },
+  ];
+
+  const STICKERS = [
+    { id: "pizza", label: "🍕" }, { id: "gold", label: "🌟" }, { id: "broccoli", label: "🥦" },
+    { id: "leo", label: "💙" }, { id: "raph", label: "❤️" }, { id: "don", label: "💜" },
+    { id: "mikey", label: "🧡" }, { id: "sewer", label: "🐢" },
+  ];
+
+  function stagePack(world, name, lengthMs, enemies, pickups, boss) {
+    return { world, name, lengthMs, enemies, pickups, boss: boss || null };
+  }
+
+  const STAGES = [
+    stagePack(1, "הביוב הישן", 28000, [
+      { at: 0.15, lane: 1, type: "scout", hp: 1 }, { at: 0.28, lane: 0, type: "scout", hp: 1 },
+      { at: 0.42, lane: 2, type: "scout", hp: 1 }, { at: 0.55, lane: 1, type: "scout", hp: 1 },
+      { at: 0.68, lane: 0, type: "scout", hp: 1 }, { at: 0.80, lane: 2, type: "scout", hp: 1 },
+    ], [
+      { at: 0.1, lane: 0 }, { at: 0.2, lane: 2 }, { at: 0.35, lane: 1 }, { at: 0.48, lane: 2, gold: true },
+      { at: 0.6, lane: 0 }, { at: 0.72, lane: 1 }, { at: 0.85, lane: 2 },
+    ]),
+    stagePack(1, "צינורות", 30000, [
+      { at: 0.12, lane: 1, type: "scout", hp: 1 }, { at: 0.24, lane: 2, type: "ninja", hp: 1 },
+      { at: 0.38, lane: 0, type: "scout", hp: 1 }, { at: 0.5, lane: 1, type: "bomber", hp: 2 },
+      { at: 0.62, lane: 2, type: "scout", hp: 1 }, { at: 0.74, lane: 0, type: "ninja", hp: 1 },
+      { at: 0.86, lane: 1, type: "scout", hp: 1 },
+    ], [
+      { at: 0.08, lane: 2 }, { at: 0.22, lane: 0 }, { at: 0.4, lane: 1, gold: true },
+      { at: 0.55, lane: 2 }, { at: 0.7, lane: 0 }, { at: 0.82, lane: 1, gold: true },
+    ]),
+    stagePack(1, "מנהרת הפיצה", 26000, [
+      { at: 0.2, lane: 1, type: "scout", hp: 1 }, { at: 0.45, lane: 0, type: "scout", hp: 1 },
+      { at: 0.7, lane: 2, type: "scout", hp: 1 },
+    ], [
+      { at: 0.1, lane: 0 }, { at: 0.18, lane: 1 }, { at: 0.26, lane: 2 }, { at: 0.34, lane: 0, gold: true },
+      { at: 0.42, lane: 1 }, { at: 0.5, lane: 2 }, { at: 0.58, lane: 0 }, { at: 0.66, lane: 1, gold: true },
+      { at: 0.74, lane: 2 }, { at: 0.82, lane: 1 },
+    ]),
+    stagePack(1, "ברוקולי ענק", 45000, [
+      { at: 0.2, lane: 0, type: "scout", hp: 1 }, { at: 0.35, lane: 2, type: "scout", hp: 1 },
+      { at: 0.55, lane: 1, type: "bomber", hp: 2 }, { at: 0.7, lane: 0, type: "scout", hp: 1 },
+    ], [
+      { at: 0.15, lane: 1 }, { at: 0.3, lane: 2, gold: true }, { at: 0.5, lane: 0 }, { at: 0.65, lane: 1 },
+    ], { hp: 5, name: "ברוקולי ענק", variant: "boss" }),
+
+    stagePack(2, "מטבח רשע", 30000, [
+      { at: 0.14, lane: 1, type: "bomber", hp: 2 }, { at: 0.28, lane: 0, type: "scout", hp: 1 },
+      { at: 0.4, lane: 2, type: "ninja", hp: 1 }, { at: 0.55, lane: 1, type: "bomber", hp: 2 },
+      { at: 0.7, lane: 0, type: "scout", hp: 1 }, { at: 0.84, lane: 2, type: "bomber", hp: 2 },
+    ], [
+      { at: 0.1, lane: 2 }, { at: 0.25, lane: 0, gold: true }, { at: 0.45, lane: 1 }, { at: 0.6, lane: 2 },
+      { at: 0.78, lane: 0, gold: true },
+    ]),
+    stagePack(2, "סירים רותחים", 32000, [
+      { at: 0.12, lane: 2, type: "ninja", hp: 1 }, { at: 0.25, lane: 1, type: "bomber", hp: 2 },
+      { at: 0.38, lane: 0, type: "scout", hp: 1 }, { at: 0.5, lane: 2, type: "bomber", hp: 2 },
+      { at: 0.65, lane: 1, type: "ninja", hp: 1 }, { at: 0.8, lane: 0, type: "bomber", hp: 2 },
+    ], [
+      { at: 0.08, lane: 1 }, { at: 0.3, lane: 0 }, { at: 0.48, lane: 2, gold: true }, { at: 0.7, lane: 1 },
+    ]),
+    stagePack(2, "מסדרון הגבינה", 28000, [
+      { at: 0.2, lane: 1, type: "scout", hp: 1 }, { at: 0.4, lane: 0, type: "bomber", hp: 2 },
+      { at: 0.6, lane: 2, type: "ninja", hp: 1 }, { at: 0.78, lane: 1, type: "scout", hp: 1 },
+    ], [
+      { at: 0.1, lane: 0, gold: true }, { at: 0.22, lane: 1 }, { at: 0.35, lane: 2 }, { at: 0.5, lane: 0 },
+      { at: 0.65, lane: 1, gold: true }, { at: 0.8, lane: 2 },
+    ]),
+    stagePack(2, "שף ברוקולי", 48000, [
+      { at: 0.18, lane: 0, type: "bomber", hp: 2 }, { at: 0.35, lane: 2, type: "ninja", hp: 1 },
+      { at: 0.55, lane: 1, type: "bomber", hp: 2 }, { at: 0.72, lane: 0, type: "scout", hp: 1 },
+    ], [
+      { at: 0.12, lane: 1, gold: true }, { at: 0.4, lane: 2 }, { at: 0.6, lane: 0, gold: true },
+    ], { hp: 7, name: "שף ברוקולי", variant: "boss" }),
+
+    stagePack(3, "גגות NY", 32000, [
+      { at: 0.12, lane: 1, type: "ninja", hp: 1 }, { at: 0.25, lane: 0, type: "ninja", hp: 1 },
+      { at: 0.4, lane: 2, type: "bomber", hp: 2 }, { at: 0.55, lane: 1, type: "ninja", hp: 1 },
+      { at: 0.7, lane: 0, type: "scout", hp: 1 }, { at: 0.85, lane: 2, type: "ninja", hp: 1 },
+    ], [
+      { at: 0.1, lane: 2 }, { at: 0.3, lane: 0, gold: true }, { at: 0.5, lane: 1 }, { at: 0.75, lane: 2, gold: true },
+    ]),
+    stagePack(3, "קפיצה בין גגות", 34000, [
+      { at: 0.15, lane: 2, type: "bomber", hp: 2 }, { at: 0.3, lane: 1, type: "ninja", hp: 1 },
+      { at: 0.45, lane: 0, type: "ninja", hp: 1 }, { at: 0.6, lane: 2, type: "bomber", hp: 2 },
+      { at: 0.75, lane: 1, type: "ninja", hp: 1 }, { at: 0.88, lane: 0, type: "bomber", hp: 2 },
+    ], [
+      { at: 0.2, lane: 1 }, { at: 0.4, lane: 0, gold: true }, { at: 0.65, lane: 2 }, { at: 0.82, lane: 1 },
+    ]),
+    stagePack(3, "לילה בניו יורק", 30000, [
+      { at: 0.18, lane: 1, type: "ninja", hp: 1 }, { at: 0.35, lane: 0, type: "bomber", hp: 2 },
+      { at: 0.52, lane: 2, type: "ninja", hp: 1 }, { at: 0.7, lane: 1, type: "bomber", hp: 2 },
+      { at: 0.85, lane: 0, type: "ninja", hp: 1 },
+    ], [
+      { at: 0.12, lane: 2, gold: true }, { at: 0.4, lane: 1 }, { at: 0.6, lane: 0, gold: true }, { at: 0.8, lane: 2 },
+    ]),
+    stagePack(3, "שרדר-ברוקולי", 55000, [
+      { at: 0.15, lane: 0, type: "ninja", hp: 1 }, { at: 0.3, lane: 2, type: "bomber", hp: 2 },
+      { at: 0.45, lane: 1, type: "ninja", hp: 1 }, { at: 0.6, lane: 0, type: "bomber", hp: 2 },
+      { at: 0.75, lane: 2, type: "ninja", hp: 1 },
+    ], [
+      { at: 0.1, lane: 1, gold: true }, { at: 0.35, lane: 0 }, { at: 0.55, lane: 2, gold: true }, { at: 0.8, lane: 1 },
+    ], { hp: 10, name: "שרדר-ברוקולי", variant: "boss" }),
+  ];
+
+  // ---------- Save ----------
   function loadSave() {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return defaultSave();
-      const parsed = JSON.parse(raw);
-      const base = defaultSave();
+      const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
       return {
-        unlocked: Math.min(Math.max(parsed.unlocked | 0, 0), STAGES.length - 1),
-        stars: Array.isArray(parsed.stars) && parsed.stars.length === STAGES.length
-          ? parsed.stars.map((n) => Math.max(0, Math.min(3, n | 0)))
-          : base.stars,
-        stickers: Array.isArray(parsed.stickers) ? parsed.stickers.filter((s) => typeof s === "string") : [],
-        turtleId: typeof parsed.turtleId === "string" ? parsed.turtleId : null,
-        attempts: Array.isArray(parsed.attempts) && parsed.attempts.length === STAGES.length
-          ? parsed.attempts.map((n) => Math.max(0, n | 0))
-          : base.attempts,
+        unlocked: Math.min(STAGES.length - 1, Math.max(0, raw.unlocked | 0)),
+        stars: Array.isArray(raw.stars) ? raw.stars : Array(STAGES.length).fill(0),
+        stickers: Array.isArray(raw.stickers) ? raw.stickers : [],
+        turtleId: raw.turtleId || "leo",
+        attempts: raw.attempts || {},
       };
-    } catch (e) {
-      return defaultSave();
+    } catch (_) {
+      return { unlocked: 0, stars: Array(STAGES.length).fill(0), stickers: [], turtleId: "leo", attempts: {} };
     }
   }
-
-  function persistSave() {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
-    } catch (e) { /* quota / private mode — silently ignore */ }
+  function persist() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   }
-
-  const save = loadSave();
+  let save = loadSave();
 
   // ---------- DOM ----------
   const $ = (id) => document.getElementById(id);
-  const dom = {
-    screens: {
-      start: $("screen-start"),
-      pick: $("screen-pick"),
-      map: $("screen-map"),
-      stickers: $("screen-stickers"),
-      game: $("screen-game"),
-      pause: $("screen-pause"),
-      clear: $("screen-clear"),
-      retry: $("screen-retry"),
-    },
-    turtleGrid: $("turtle-grid"),
-    mapBoard: $("map-board"),
-    mapTurtleLabel: $("map-turtle-label"),
-    stickerGrid: $("sticker-grid"),
-    hearts: $("hearts"),
-    pizzaCount: $("pizza-count"),
-    stageLabel: $("stage-label"),
-    bossHp: $("boss-hp"),
-    btnPause: $("btn-pause"),
-    arena: $("arena"),
-    arenaSky: $("arena-sky"),
-    world: $("world"),
-    fx: $("fx-layer"),
-    player: $("player"),
-    playerImg: $("player-img"),
-    attackFlash: $("attack-flash"),
-    stageBanner: $("stage-banner"),
-    btnSuper: $("btn-super"),
-    superRing: $("super-ring"),
-    superLabel: $("super-label"),
-    toast: $("toast"),
-    pauseStats: $("pause-stats"),
-    clearTitle: $("clear-title"),
-    starsRow: $("stars-row"),
-    clearStats: $("clear-stats"),
-    celebration: $("celebration"),
-    celeText: $("cele-text"),
+  const screens = {
+    start: $("screen-start"), pick: $("screen-pick"), map: $("screen-map"),
+    stickers: $("screen-stickers"), game: $("screen-game"), pause: $("screen-pause"),
+    clear: $("screen-clear"), retry: $("screen-retry"),
   };
 
-  // ---------- Audio (WebAudio beeps) ----------
+  function showScreen(name) {
+    Object.values(screens).forEach((s) => s.classList.remove("active"));
+    if (name === "pause" || name === "clear" || name === "retry") screens.game.classList.add("active");
+    screens[name].classList.add("active");
+    if (name === "game" || name === "pause") mode = "game";
+    else if (name === "start" || name === "pick") {
+      mode = "showcase";
+      setShowcaseVisible(true);
+    } else {
+      mode = "idle";
+      showcaseRoot.visible = false;
+    }
+  }
+
+  function toast(text) {
+    const el = $("toast");
+    el.hidden = false; el.textContent = text;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { el.hidden = true; }, 1100);
+  }
+
+  function celebrate(text) {
+    const el = $("celebration");
+    $("cele-text").textContent = text;
+    el.hidden = false;
+    clearTimeout(celebrate._t);
+    celebrate._t = setTimeout(() => { el.hidden = true; }, 1400);
+  }
+
+  // ---------- Audio ----------
   let audioCtx = null;
-  function audio() {
-    if (audioCtx) return audioCtx;
+  function unlockAudio() {
+    if (audioCtx) return;
     try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) audioCtx = new Ctx();
-    } catch (e) { audioCtx = null; }
-    return audioCtx;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {}
   }
   function beep(freq, dur, type, gain) {
-    const ctx = audio();
-    if (!ctx) return;
-    try {
-      const t = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = type || "sine";
-      osc.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(gain || 0.15, t + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.15));
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(t); osc.stop(t + (dur || 0.15) + 0.02);
-    } catch (e) { /* ignore */ }
-  }
-  const sfx = {
-    tap:    () => beep(680, 0.08, "square", 0.10),
-    coin:   () => { beep(880, 0.08, "triangle", 0.14); setTimeout(() => beep(1320, 0.10, "triangle", 0.14), 60); },
-    gold:   () => { beep(1200, 0.10, "triangle", 0.15); setTimeout(() => beep(1600, 0.14, "triangle", 0.14), 80); },
-    hit:    () => beep(160, 0.20, "sawtooth", 0.18),
-    hurt:   () => { beep(220, 0.18, "square", 0.20); setTimeout(() => beep(120, 0.30, "sawtooth", 0.18), 90); },
-    super:  () => { beep(500, 0.10, "sawtooth", 0.16); setTimeout(() => beep(900, 0.10, "sawtooth", 0.16), 100); setTimeout(() => beep(1300, 0.20, "triangle", 0.18), 200); },
-    clear:  () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, "triangle", 0.18), i * 110)); },
-    win:    () => { [523, 659, 784, 1046, 1319].forEach((f, i) => setTimeout(() => beep(f, 0.22, "triangle", 0.20), i * 130)); },
-  };
-
-  // ---------- Utilities ----------
-  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-  const rand  = (lo, hi) => lo + Math.random() * (hi - lo);
-  const now   = () => performance.now();
-
-  function toast(msg, ms) {
-    dom.toast.textContent = msg;
-    dom.toast.hidden = false;
-    dom.toast.style.animation = "none";
-    // reflow to restart animation
-    // eslint-disable-next-line no-unused-expressions
-    void dom.toast.offsetWidth;
-    dom.toast.style.animation = "";
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => { dom.toast.hidden = true; }, ms || 1400);
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type || "square";
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(gain || 0.07, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t0); o.stop(t0 + dur);
   }
 
-  function celebrate(text, ms) {
-    dom.celeText.textContent = text || "קואבונגה!!!";
-    dom.celebration.hidden = false;
-    clearTimeout(celebrate._t);
-    celebrate._t = setTimeout(() => { dom.celebration.hidden = true; }, ms || 1500);
-  }
-
-  function showScreen(id) {
-    Object.values(dom.screens).forEach((s) => s.classList.remove("active"));
-    const el = dom.screens[id];
-    if (el) el.classList.add("active");
-  }
-
-  // ---------- Turtle picker ----------
-  function buildTurtlePicker() {
-    dom.turtleGrid.innerHTML = "";
-    TURTLES.forEach((t) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "turtle-card";
-      card.dataset.id = t.id;
-      card.setAttribute("aria-label", t.name);
-      card.innerHTML =
-        '<div class="badge"><img src="' + t.img + '" alt="" /></div>' +
-        '<div class="name">' + t.name + '</div>' +
-        '<div class="weapon">' + t.mask + '</div>' +
-        '<div class="weapon">כוח על: ' + t.superName + '</div>';
-      card.addEventListener("click", () => {
-        sfx.tap();
-        save.turtleId = t.id;
-        persistSave();
-        applyTurtleToPlayer();
-        buildMap();
-        showScreen("map");
-      });
-      dom.turtleGrid.appendChild(card);
+  // ---------- Three.js core ----------
+  const canvas = $("c3d");
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: false,
     });
+  } catch (err) {
+    console.error(err);
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div style="position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#04150f;color:#fff6e0;font-family:Fredoka,sans-serif;text-align:center;padding:24px"><div><h1>צריך WebGL</h1><p>הדפדפן לא הצליח להפעיל תלת־מימד. נסו Safari/Chrome מעודכן באייפד.</p></div></div>'
+    );
+    return;
   }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (renderer.outputColorSpace !== undefined) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x04150f);
+  scene.fog = new THREE.Fog(0x04150f, 12, 48);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 80);
+  camera.position.set(0, 3.2, 8);
+
+  const hemi = new THREE.HemisphereLight(0xb1ffd0, 0x1a3a2a, 1.05);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff2cc, 1.35);
+  sun.position.set(4, 10, 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 40;
+  sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+  sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+  scene.add(sun);
+  const fill = new THREE.PointLight(0x3ecf7a, 0.55, 30);
+  fill.position.set(-3, 3, 2);
+  scene.add(fill);
+
+  const worldRoot = new THREE.Group();
+  scene.add(worldRoot);
+  const entityRoot = new THREE.Group();
+  scene.add(entityRoot);
+  const showcaseRoot = new THREE.Group();
+  scene.add(showcaseRoot);
+
+  let playerMesh = null;
+  let mode = "showcase"; // showcase | game | idle
+  const clock = new THREE.Clock();
+
+  function clearGroup(g) {
+    while (g.children.length) {
+      const c = g.children.pop();
+      g.remove(c);
+      c.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+          else o.material.dispose();
+        }
+      });
+    }
+  }
+
+  function buildSewer(distance) {
+    clearGroup(worldRoot);
+    const chunkLen = 20;
+    const count = Math.ceil(distance / chunkLen) + 2;
+    for (let i = 0; i < count; i++) {
+      worldRoot.add(M.createSewerChunk(-i * chunkLen, chunkLen));
+    }
+  }
+
+  function setWorldTheme(world) {
+    if (world === 2) {
+      scene.background = new THREE.Color(0x1a1008);
+      scene.fog.color.set(0x1a1008);
+      hemi.color.set(0xffd0a0); hemi.groundColor.set(0x3a2010);
+      sun.color.set(0xffc080);
+    } else if (world === 3) {
+      scene.background = new THREE.Color(0x081428);
+      scene.fog.color.set(0x081428);
+      hemi.color.set(0xa0c8ff); hemi.groundColor.set(0x101828);
+      sun.color.set(0xc0d8ff);
+    } else {
+      scene.background = new THREE.Color(0x04150f);
+      scene.fog.color.set(0x04150f);
+      hemi.color.set(0xb1ffd0); hemi.groundColor.set(0x1a3a2a);
+      sun.color.set(0xfff2cc);
+    }
+  }
+
+  function spawnPlayerMesh(turtleId) {
+    if (playerMesh) {
+      scene.remove(playerMesh);
+      clearGroup(playerMesh);
+    }
+    const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
+    playerMesh = M.createTurtle3D(t.color);
+    playerMesh.scale.setScalar(1.05);
+    playerMesh.rotation.y = Math.PI; // face -Z (into tunnel / toward camera approach)
+    // Actually enemies come from -Z (ahead). Player should face -Z.
+    playerMesh.rotation.y = 0;
+    scene.add(playerMesh);
+    return playerMesh;
+  }
+
+  // Showcase turtles on start/pick
+  let showcaseTurtles = [];
+  function setShowcaseVisible(on) {
+    showcaseRoot.visible = !!on;
+    if (on) {
+      buildShowcase();
+    }
+  }
+
+  function buildShowcase() {
+    clearGroup(showcaseRoot);
+    showcaseTurtles = [];
+    TURTLES.forEach((t, i) => {
+      const mesh = M.createTurtle3D(t.color);
+      mesh.scale.setScalar(0.95);
+      const ang = (i / 4) * Math.PI * 2;
+      mesh.position.set(Math.sin(ang) * 3.2, 0, Math.cos(ang) * 3.2 - 1);
+      mesh.userData.orbit = ang;
+      showcaseRoot.add(mesh);
+      showcaseTurtles.push(mesh);
+    });
+    if (mode !== "game") {
+      buildSewer(40);
+      setWorldTheme(1);
+    }
+  }
+
+  // ---------- Game state ----------
+  const game = {
+    stageIndex: 0,
+    running: false,
+    paused: false,
+    hearts: 3,
+    pizzas: 0,
+    progress: 0,
+    lane: 1,
+    laneX: 0,
+    invulnUntil: 0,
+    shieldUntil: 0,
+    pizzaMult: 1,
+    boss: null,
+    bossHp: 0,
+    bossMax: 0,
+    entities: [],
+    spawnedE: 0,
+    spawnedP: 0,
+    distance: 60,
+    speed: 7,
+    hitCooldown: 0,
+    attempt: 0,
+  };
 
   function getTurtle() {
     return TURTLES.find((t) => t.id === save.turtleId) || TURTLES[0];
   }
 
-  function applyTurtleToPlayer() {
-    const t = getTurtle();
-    dom.playerImg.src = t.img;
-    dom.player.classList.remove("mask-leo", "mask-raph", "mask-don", "mask-mikey");
-    dom.player.classList.add("mask-" + t.id);
-    if (dom.mapTurtleLabel) dom.mapTurtleLabel.textContent = "עם " + t.name + " · " + t.superName;
+  function updateHud() {
+    $("hearts").textContent = "❤".repeat(Math.max(0, game.hearts)) + (game.hearts < 3 ? "🖤".repeat(3 - game.hearts) : "");
+    $("pizza-count").textContent = "🍕 " + game.pizzas;
+    const stg = STAGES[game.stageIndex];
+    $("stage-label").textContent = stg.world + "-" + ((game.stageIndex % 4) + 1);
+    const btn = $("btn-super");
+    const ready = game.pizzas >= SUPER_COST;
+    btn.disabled = !ready;
+    btn.classList.toggle("ready", ready);
+    $("super-label").textContent = ready ? getTurtle().superName : "כוח על " + Math.min(game.pizzas, SUPER_COST) + "/" + SUPER_COST;
+    if (stg.boss) {
+      $("boss-hp").hidden = false;
+      $("boss-hp").textContent = "🥦 " + "●".repeat(game.bossHp) + "○".repeat(Math.max(0, game.bossMax - game.bossHp));
+    } else {
+      $("boss-hp").hidden = true;
+    }
   }
 
-  // ---------- Map ----------
-  function buildMap() {
-    dom.mapBoard.innerHTML = "";
-    // Layout: 12 nodes across a curvy path — coords in % (relative to map-board)
-    const nodePositions = [
-      { x: 12, y: 78 }, { x: 28, y: 62 }, { x: 44, y: 78 }, { x: 58, y: 58 },
-      { x: 18, y: 42 }, { x: 34, y: 26 }, { x: 50, y: 40 }, { x: 66, y: 24 },
-      { x: 78, y: 38 }, { x: 86, y: 56 }, { x: 74, y: 72 }, { x: 58, y: 86 },
-    ];
+  function removeEntity(ent) {
+    if (!ent) return;
+    entityRoot.remove(ent.mesh);
+    game.entities = game.entities.filter((e) => e !== ent);
+  }
 
-    // SVG dashed path connecting nodes
+  function spawnEnemyDef(def) {
+    const mesh = M.createBroccoli3D(def.type === "boss" ? "boss" : def.type);
+    mesh.position.set(LANES_X[def.lane], 0, -game.distance * def.at - 8);
+    entityRoot.add(mesh);
+    game.entities.push({
+      kind: "enemy", type: def.type, hp: def.hp, lane: def.lane, mesh,
+      baseLane: def.lane, hit: false,
+    });
+  }
+
+  function spawnPickupDef(def) {
+    const mesh = M.createPizza3D(!!def.gold);
+    mesh.scale.setScalar(0.7);
+    mesh.position.set(LANES_X[def.lane], 0.7, -game.distance * def.at - 6);
+    entityRoot.add(mesh);
+    game.entities.push({ kind: "pickup", gold: !!def.gold, lane: def.lane, mesh });
+  }
+
+  function startStage(idx) {
+    unlockAudio();
+    game.stageIndex = idx;
+    game.running = true;
+    game.paused = false;
+    game.hearts = 3;
+    game.pizzas = 0;
+    game.progress = 0;
+    game.lane = 1;
+    game.laneX = LANES_X[1];
+    game.invulnUntil = 0;
+    game.shieldUntil = 0;
+    game.pizzaMult = 1;
+    game.spawnedE = 0;
+    game.spawnedP = 0;
+    game.hitCooldown = 0;
+    game.attempt = (save.attempts[idx] | 0);
+    save.attempts[idx] = game.attempt + 1;
+    persist();
+
+    const stg = STAGES[idx];
+    game.distance = 18 + stg.lengthMs * 0.0022;
+    game.speed = 6.5 + stg.world * 0.4;
+
+    clearGroup(entityRoot);
+    game.entities = [];
+    setShowcaseVisible(false);
+    setWorldTheme(stg.world);
+    worldRoot.position.z = 0;
+    buildSewer(game.distance + 40);
+    spawnPlayerMesh(save.turtleId);
+    playerMesh.position.set(game.laneX, 0, 0);
+    playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
+
+    game.boss = null;
+    game.bossHp = 0;
+    game.bossMax = 0;
+    if (stg.boss) {
+      let hp = stg.boss.hp;
+      if (game.attempt >= 3) hp = Math.ceil(hp * 0.5);
+      game.bossMax = hp;
+      game.bossHp = hp;
+      const mesh = M.createBroccoli3D("boss");
+      mesh.position.set(0, 0, -14);
+      entityRoot.add(mesh);
+      game.boss = { mesh, hp };
+    }
+
+    updateHud();
+    showScreen("game");
+    $("drag-hint").hidden = false;
+    setTimeout(() => { $("drag-hint").hidden = true; }, 2500);
+    const banner = $("stage-banner");
+    banner.hidden = false;
+    banner.textContent = stg.name;
+    setTimeout(() => { banner.hidden = true; }, 1400);
+    toast("קדימה " + getTurtle().name + "!");
+  }
+
+  function hurtPlayer() {
+    const now = performance.now();
+    if (now < game.invulnUntil) return;
+    if (now < game.shieldUntil) return;
+    game.hearts -= 1;
+    game.invulnUntil = now + 1500;
+    beep(160, 0.15, "sawtooth", 0.05);
+    updateHud();
+    if (playerMesh) {
+      playerMesh.traverse((o) => {
+        if (o.isMesh && o.material && o.material.emissive) {
+          o.material.emissive.setHex(0xff2222);
+          setTimeout(() => o.material.emissive.setHex(0x000000), 250);
+        }
+      });
+    }
+    if (game.hearts <= 0) {
+      game.running = false;
+      showScreen("retry");
+    }
+  }
+
+  function hitEnemy(ent) {
+    if (!ent || ent.hp <= 0) return;
+    ent.hp -= 1;
+    beep(520, 0.08, "square", 0.07);
+    ent.mesh.scale.multiplyScalar(0.92);
+    if (ent.hp <= 0) {
+      // poof
+      ent.mesh.position.y += 0.5;
+      removeEntity(ent);
+      beep(680, 0.1, "triangle", 0.06);
+    }
+  }
+
+  function hitBoss() {
+    if (!game.boss || game.bossHp <= 0) return;
+    const now = performance.now();
+    if (now < game.hitCooldown) return;
+    game.hitCooldown = now + 450;
+    game.bossHp -= 1;
+    beep(400, 0.1, "sawtooth", 0.07);
+    game.boss.mesh.rotation.y += 0.4;
+    updateHud();
+    if (game.bossHp <= 0) {
+      entityRoot.remove(game.boss.mesh);
+      game.boss = null;
+      finishStage(true);
+    }
+  }
+
+  function activateSuper() {
+    if (game.pizzas < SUPER_COST || !game.running || game.paused) return;
+    game.pizzas -= SUPER_COST;
+    updateHud();
+    const id = getTurtle().id;
+    celebrate(getTurtle().superName);
+    beep(660, 0.12, "triangle", 0.08);
+    setTimeout(() => beep(880, 0.15, "triangle", 0.08), 80);
+
+    if (id === "leo" || id === "raph") {
+      [...game.entities].forEach((e) => {
+        if (e.kind === "enemy") removeEntity(e);
+      });
+      if (id === "raph") hitBoss();
+      else if (game.boss) hitBoss();
+    } else if (id === "don") {
+      game.shieldUntil = performance.now() + 5000;
+      game.pizzaMult = 2;
+      setTimeout(() => { game.pizzaMult = 1; }, 5000);
+      toast("מגן חכם!");
+    } else if (id === "mikey") {
+      for (let i = 0; i < 8; i++) {
+        const mesh = M.createPizza3D(i % 3 === 0);
+        mesh.scale.setScalar(0.65);
+        mesh.position.set(LANES_X[i % 3], 0.8, -2 - i * 1.2);
+        entityRoot.add(mesh);
+        game.entities.push({ kind: "pickup", gold: i % 3 === 0, lane: i % 3, mesh });
+      }
+    }
+  }
+
+  function finishStage(bossWin) {
+    game.running = false;
+    const stars = Math.max(1, game.hearts);
+    save.stars[game.stageIndex] = Math.max(save.stars[game.stageIndex] || 0, stars);
+    if (game.stageIndex >= save.unlocked && game.stageIndex < STAGES.length - 1) {
+      save.unlocked = game.stageIndex + 1;
+    }
+    const cleared = save.stars.filter((n) => n > 0).length;
+    const want = Math.min(STICKERS.length, Math.floor(cleared / 3));
+    while (save.stickers.length < want) {
+      const next = STICKERS[save.stickers.length];
+      if (next) save.stickers.push(next.id);
+    }
+    persist();
+
+    $("clear-title").textContent = bossWin ? "ניצחנו את הבוס!" : "כל הכבוד!";
+    $("stars-row").textContent = "⭐".repeat(stars) + "☆".repeat(3 - stars);
+    $("clear-stats").textContent = "פיצות: " + game.pizzas;
+    celebrate(bossWin && game.stageIndex === STAGES.length - 1 ? "הצלנו את העיר!" : "קואבונגה!!!");
+    showScreen("clear");
+  }
+
+  // ---------- Input ----------
+  let dragging = false;
+  function setLaneFromClientY(clientY) {
+    const y = clientY / window.innerHeight;
+    // top of screen = lane 0, bottom = lane 2
+    let lane = 1;
+    if (y < 0.38) lane = 0;
+    else if (y > 0.62) lane = 2;
+    game.lane = lane;
+  }
+  function onDown(e) {
+    if (!game.running || game.paused) return;
+    dragging = true;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    setLaneFromClientY(y);
+  }
+  function onMove(e) {
+    if (!dragging || !game.running || game.paused) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    setLaneFromClientY(y);
+    if (e.cancelable) e.preventDefault();
+  }
+  function onUp() { dragging = false; }
+
+  canvas.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  canvas.addEventListener("touchmove", (e) => { if (dragging) e.preventDefault(); }, { passive: false });
+
+  // ---------- UI builders ----------
+  function buildPicker() {
+    const grid = $("turtle-grid");
+    grid.innerHTML = "";
+    TURTLES.forEach((t) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "turtle-card";
+      btn.dataset.id = t.id;
+      btn.innerHTML = '<div class="swatch"></div><div class="name">' + t.name + '</div><div class="meta">' + t.mask + '</div><div class="meta">כוח: ' + t.superName + "</div>";
+      btn.addEventListener("click", () => {
+        unlockAudio(); beep(520, 0.08, "triangle", 0.07);
+        save.turtleId = t.id; persist();
+        $("map-turtle-label").textContent = "עם " + t.name + " · " + t.superName;
+        buildMap();
+        showScreen("map");
+      });
+      grid.appendChild(btn);
+    });
+  }
+
+  function buildMap() {
+    const board = $("map-board");
+    board.innerHTML = "";
+    const positions = [
+      { x: 14, y: 78 }, { x: 30, y: 62 }, { x: 46, y: 78 }, { x: 60, y: 58 },
+      { x: 20, y: 42 }, { x: 36, y: 26 }, { x: 52, y: 40 }, { x: 68, y: 24 },
+      { x: 78, y: 40 }, { x: 86, y: 58 }, { x: 74, y: 74 }, { x: 58, y: 86 },
+    ];
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("class", "map-path");
     svg.setAttribute("viewBox", "0 0 100 100");
     svg.setAttribute("preserveAspectRatio", "none");
     let d = "";
-    nodePositions.forEach((p, i) => { d += (i === 0 ? "M" : " L") + p.x + " " + p.y; });
+    positions.forEach((p, i) => { d += (i ? " L" : "M") + p.x + " " + p.y; });
     const path = document.createElementNS(svgNS, "path");
     path.setAttribute("class", "path-line");
     path.setAttribute("d", d);
     svg.appendChild(path);
-    dom.mapBoard.appendChild(svg);
+    board.appendChild(svg);
 
     STAGES.forEach((stg, idx) => {
-      const p = nodePositions[idx];
+      const p = positions[idx];
       const node = document.createElement("button");
       node.type = "button";
       node.className = "map-node";
       node.style.left = p.x + "%";
-      node.style.top  = p.y + "%";
-      const isBoss   = !!stg.boss;
-      const isLocked = idx > save.unlocked;
-      const isDone   = (save.stars[idx] || 0) > 0;
-      const isCurrent = idx === save.unlocked && !isDone;
-      if (isBoss)    node.classList.add("boss");
-      if (isLocked)  node.classList.add("locked");
-      else if (isDone) node.classList.add("done");
-      else             node.classList.add("open");
-      if (isCurrent) node.classList.add("current");
-
-      const worldLabel = stg.world + "-" + (((idx % 4) + 1));
-      node.innerHTML =
-        '<span class="node-num">' + worldLabel + '</span>' +
-        '<span class="node-label">' + stg.name + '</span>';
-
+      node.style.top = p.y + "%";
+      const locked = idx > save.unlocked;
+      const done = (save.stars[idx] || 0) > 0;
+      if (stg.boss) node.classList.add("boss");
+      if (locked) node.classList.add("locked");
+      else if (done) node.classList.add("done");
+      else node.classList.add("open");
+      if (idx === save.unlocked) node.classList.add("current");
+      node.textContent = stg.world + "-" + ((idx % 4) + 1);
       node.addEventListener("click", () => {
-        if (isLocked) {
-          sfx.hit();
-          toast("עוד לא נפתח — נצחו את השלב הקודם");
-          return;
-        }
-        sfx.tap();
+        if (locked) { toast("עוד לא נפתח"); return; }
         startStage(idx);
       });
-      dom.mapBoard.appendChild(node);
+      board.appendChild(node);
     });
   }
 
-  // ---------- Stickers ----------
   function buildStickers() {
-    dom.stickerGrid.innerHTML = "";
+    const grid = $("sticker-grid");
+    grid.innerHTML = "";
     STICKERS.forEach((s) => {
       const cell = document.createElement("div");
       cell.className = "sticker-cell";
-      const earned = save.stickers.indexOf(s.id) !== -1;
-      if (earned) {
+      if (save.stickers.indexOf(s.id) !== -1) {
         cell.classList.add("earned");
-        if (s.img) {
-          const img = document.createElement("img");
-          img.src = s.img; img.alt = s.label;
-          cell.appendChild(img);
-        } else {
-          const span = document.createElement("span");
-          span.style.fontSize = "36px";
-          span.textContent = "🐢";
-          cell.appendChild(span);
-        }
-        const cap = document.createElement("div");
-        cap.style.cssText = "position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:11px;color:#4d2f00;text-shadow:0 1px 0 rgba(255,255,255,.5);font-weight:700;";
-        cap.textContent = s.label;
-        cell.appendChild(cap);
-      } else {
-        const lock = document.createElement("span");
-        lock.className = "locked-mark";
-        lock.textContent = "🔒";
-        cell.appendChild(lock);
-      }
-      dom.stickerGrid.appendChild(cell);
+        cell.textContent = s.label + "\n" + s.id;
+      } else cell.textContent = "🔒";
+      grid.appendChild(cell);
     });
   }
 
-  function maybeAwardStickers() {
-    // Every 3 stages cleared → 1 sticker.
-    const cleared = save.stars.filter((n) => n > 0).length;
-    const target = Math.min(STICKERS.length, Math.floor(cleared / 3));
-    const owned = save.stickers.length;
-    if (target > owned) {
-      const toAward = STICKERS.slice(owned, target);
-      toAward.forEach((s) => { if (save.stickers.indexOf(s.id) === -1) save.stickers.push(s.id); });
-      persistSave();
-      const label = toAward[toAward.length - 1].label;
-      toast("מדבקה חדשה: " + label + "!", 1800);
+  // ---------- Loop ----------
+  function updateGame(dt, t) {
+    if (!game.running || game.paused) return;
+    const stg = STAGES[game.stageIndex];
+
+    game.progress += (dt * game.speed) / game.distance;
+    // spawn by progress
+    while (game.spawnedE < stg.enemies.length && stg.enemies[game.spawnedE].at <= game.progress + 0.05) {
+      spawnEnemyDef(stg.enemies[game.spawnedE++]);
     }
-  }
-
-  // ==========================================================
-  // GAME ENGINE
-  // ==========================================================
-
-  // Runtime state
-  const game = {
-    stageIndex: 0,
-    stage: null,
-    playing: false,
-    paused: false,
-    startedAt: 0,
-    elapsed: 0,        // ms since stage start (excluding pause)
-    progress: 0,       // 0..1 within stage timeline (excludes boss phase)
-    hearts: 3,
-    pizzas: 0,
-    superCharge: 0,    // 0..8
-    superReady: false,
-    shieldUntil: 0,
-    invulnUntil: 0,
-    lane: 1,           // 0/1/2 (top/middle/bottom)
-    playerY: 0.5,      // fractional 0..1 of arena height, smoothed
-    playerX: 0.72,     // fractional 0..1 (fixed near right)
-    dragging: false,
-    entities: [],      // { el, type: 'enemy'|'pickup'|'boss', kind, hp, lane, at, x, y, ... }
-    boss: null,
-    bossHp: 0,
-    bossMaxHp: 0,
-    bossPhase: false,
-    lastTs: 0,
-    scrollSpeed: 0.12, // fraction of screen per second at 1.0 speed
-    arenaRect: null,
-  };
-
-  // Lane centers (fraction of arena height from top)
-  const LANE_Y = [0.30, 0.50, 0.72];
-  const SUPER_TARGET = 8;
-
-  function refreshArenaRect() {
-    game.arenaRect = dom.arena.getBoundingClientRect();
-  }
-
-  function updateHeartsUI() {
-    dom.hearts.textContent = "❤".repeat(Math.max(0, game.hearts)) + "🖤".repeat(Math.max(0, 3 - game.hearts));
-    dom.hearts.classList.remove("hurt");
-    // trigger reflow to restart shake if needed
-    // eslint-disable-next-line no-unused-expressions
-    void dom.hearts.offsetWidth;
-  }
-
-  function updateSuperUI() {
-    const pct = Math.min(100, Math.round((game.superCharge / SUPER_TARGET) * 100));
-    dom.superRing.style.setProperty("--super", pct);
-    if (game.superReady) {
-      dom.btnSuper.classList.add("ready");
-      dom.btnSuper.disabled = false;
-      dom.superLabel.textContent = getTurtle().superName;
-    } else {
-      dom.btnSuper.classList.remove("ready");
-      dom.btnSuper.disabled = true;
-      dom.superLabel.textContent = "כוח על";
-    }
-  }
-
-  function updateBossHpUI() {
-    if (!game.boss) {
-      dom.bossHp.hidden = true;
-      return;
-    }
-    dom.bossHp.hidden = false;
-    const pct = Math.max(0, Math.round((game.bossHp / game.bossMaxHp) * 100));
-    dom.bossHp.style.setProperty("--hp", pct + "%");
-    dom.bossHp.textContent = "בוס " + "❤".repeat(Math.max(0, Math.min(6, game.bossHp)));
-  }
-
-  function updatePizzaUI() {
-    dom.pizzaCount.textContent = String(game.pizzas);
-  }
-
-  function updateStageLabel() {
-    const stg = game.stage;
-    const perWorld = (game.stageIndex % 4) + 1;
-    dom.stageLabel.textContent = stg.world + "-" + perWorld;
-  }
-
-  function showStageBanner(text) {
-    dom.stageBanner.textContent = text;
-    dom.stageBanner.hidden = false;
-    dom.stageBanner.style.animation = "none";
-    // eslint-disable-next-line no-unused-expressions
-    void dom.stageBanner.offsetWidth;
-    dom.stageBanner.style.animation = "";
-    clearTimeout(showStageBanner._t);
-    showStageBanner._t = setTimeout(() => { dom.stageBanner.hidden = true; }, 1600);
-  }
-
-  // ---------- Entity helpers ----------
-  function createEntityEl(cls, imgSrc) {
-    const el = document.createElement("div");
-    el.className = "entity " + cls;
-    const img = document.createElement("img");
-    img.src = imgSrc;
-    img.alt = "";
-    el.appendChild(img);
-    return el;
-  }
-
-  function spawnEnemy(def) {
-    const kind = def.type;
-    const el = createEntityEl("enemy " + kind, ASSETS.broccoli);
-    dom.world.appendChild(el);
-    const ent = {
-      el, type: "enemy", kind,
-      hp: def.hp || 1, maxHp: def.hp || 1,
-      lane: def.lane, at: def.at,
-      x: 1.15,                              // start off right
-      y: LANE_Y[def.lane],
-      baseY: LANE_Y[def.lane],
-      phase: Math.random() * Math.PI * 2,
-      alive: true,
-    };
-    game.entities.push(ent);
-    return ent;
-  }
-
-  function spawnPickup(def) {
-    const isGold = !!def.gold;
-    const el = createEntityEl("pickup" + (isGold ? " gold" : ""), isGold ? ASSETS.gold : ASSETS.pizza);
-    dom.world.appendChild(el);
-    const ent = {
-      el, type: "pickup", gold: isGold,
-      lane: def.lane, at: def.at,
-      x: 1.15, y: LANE_Y[def.lane],
-      baseY: LANE_Y[def.lane],
-      alive: true,
-    };
-    game.entities.push(ent);
-    return ent;
-  }
-
-  function spawnBoss(cfg) {
-    const el = createEntityEl("boss", ASSETS.broccoli);
-    dom.world.appendChild(el);
-    const ent = {
-      el, type: "boss",
-      hp: cfg.hp, maxHp: cfg.hp,
-      lane: 1, at: 0.99,
-      x: 0.22, y: LANE_Y[1],
-      targetLane: 1,
-      lastLaneShift: now(),
-      lastAttack: now(),
-      alive: true,
-      angry: false,
-    };
-    game.entities.push(ent);
-    game.boss = ent;
-    return ent;
-  }
-
-  function removeEntity(ent, withPoof) {
-    ent.alive = false;
-    if (withPoof) poofAt(ent.x, ent.y);
-    if (ent.el && ent.el.parentNode) {
-      ent.el.classList.add("leaving");
-      const el = ent.el;
-      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 360);
-    }
-  }
-
-  // ---------- FX ----------
-  function fxAt(x, y, cls) {
-    const rect = game.arenaRect || dom.arena.getBoundingClientRect();
-    const el = document.createElement("div");
-    el.className = cls;
-    el.style.left = (x * rect.width) + "px";
-    el.style.top  = (y * rect.height) + "px";
-    dom.fx.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
-  }
-  function poofAt(x, y) { fxAt(x, y, "poof"); }
-  function shockwaveAt(x, y) { fxAt(x, y, "shockwave"); }
-  function starPop(x, y) {
-    const rect = game.arenaRect || dom.arena.getBoundingClientRect();
-    const el = document.createElement("div");
-    el.className = "star-pop";
-    el.textContent = "★";
-    el.style.left = (x * rect.width) + "px";
-    el.style.top  = (y * rect.height) + "px";
-    dom.fx.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
-  }
-
-  function attackFlash() {
-    dom.player.classList.remove("attack");
-    // eslint-disable-next-line no-unused-expressions
-    void dom.player.offsetWidth;
-    dom.player.classList.add("attack");
-    dom.attackFlash.hidden = false;
-    dom.attackFlash.style.animation = "none";
-    // eslint-disable-next-line no-unused-expressions
-    void dom.attackFlash.offsetWidth;
-    dom.attackFlash.style.animation = "";
-    clearTimeout(attackFlash._t);
-    attackFlash._t = setTimeout(() => { dom.attackFlash.hidden = true; dom.player.classList.remove("attack"); }, 320);
-  }
-
-  function shakeArena(ms) {
-    dom.arena.classList.add("shake");
-    dom.arena.style.animation = "hurt-shake .35s ease-in-out";
-    // eslint-disable-next-line no-unused-expressions
-    void dom.arena.offsetWidth;
-    setTimeout(() => { dom.arena.classList.remove("shake"); dom.arena.style.animation = ""; }, ms || 400);
-  }
-
-  // ---------- Start Stage ----------
-  function startStage(idx) {
-    const stg = STAGES[idx];
-    if (!stg) return;
-    game.stageIndex = idx;
-    game.stage = stg;
-    game.playing = true;
-    game.paused = false;
-    game.startedAt = now();
-    game.elapsed = 0;
-    game.progress = 0;
-    game.hearts = 3;
-    game.pizzas = 0;
-    game.superCharge = 0;
-    game.superReady = false;
-    game.shieldUntil = 0;
-    game.invulnUntil = 0;
-    game.lane = 1;
-    game.playerY = LANE_Y[1];
-    game.dragging = false;
-    game.entities.forEach((e) => { if (e.el && e.el.parentNode) e.el.parentNode.removeChild(e.el); });
-    game.entities = [];
-    game.boss = null;
-    game.bossPhase = false;
-    game.lastTs = now();
-    stg._spawned = false;
-    stg._bossSpawned = false;
-
-    save.attempts[idx] = (save.attempts[idx] || 0) + 1;
-    persistSave();
-
-    // World background
-    dom.arenaSky.classList.remove("world-2", "world-3");
-    if (stg.world === 2) dom.arenaSky.classList.add("world-2");
-    else if (stg.world === 3) dom.arenaSky.classList.add("world-3");
-
-    // Reset player position visually
-    dom.player.classList.remove("hit", "attack", "shield");
-    dom.player.style.left = (game.playerX * 100) + "%";
-    dom.player.style.top  = (game.playerY * 100) + "%";
-
-    applyTurtleToPlayer();
-    updateHeartsUI();
-    updatePizzaUI();
-    updateSuperUI();
-    updateStageLabel();
-
-    // Boss stage HUD
-    if (stg.boss) {
-      game.bossPhase = false;
-      game.bossHp = stg.boss.hp;
-      // Forgiveness: after 3+ attempts, start boss at 50% HP
-      if (save.attempts[idx] >= 3) game.bossHp = Math.ceil(stg.boss.hp / 2);
-      game.bossMaxHp = game.bossHp;
-      dom.bossHp.hidden = false;
-    } else {
-      game.bossHp = 0;
-      game.bossMaxHp = 0;
-      dom.bossHp.hidden = true;
-    }
-    updateBossHpUI();
-
-    showScreen("game");
-    refreshArenaRect();
-    showStageBanner(stg.world + "-" + ((idx % 4) + 1) + "  " + stg.name);
-    sfx.tap();
-
-    // start loop
-    requestAnimationFrame(gameLoop);
-  }
-
-  // ---------- Main loop ----------
-  function gameLoop(ts) {
-    if (!game.playing) return;
-    if (game.paused) { game.lastTs = ts; requestAnimationFrame(gameLoop); return; }
-    const dt = Math.min(50, ts - game.lastTs); // ms, capped
-    game.lastTs = ts;
-    game.elapsed += dt;
-
-    updateWorld(dt);
-    updatePlayer(dt);
-    updateEntities(dt);
-    checkCollisions();
-    checkStageEnd();
-
-    requestAnimationFrame(gameLoop);
-  }
-
-  function updateWorld(dt) {
-    const stg = game.stage;
-    if (!stg) return;
-    if (stg.boss && game.bossPhase) {
-      // progress freezes during boss phase
-    } else {
-      // progress advances with elapsed / lengthMs, capped at ~0.98 on boss stages until boss arrives
-      const target = game.elapsed / stg.lengthMs;
-      game.progress = Math.min(1, target);
+    while (game.spawnedP < stg.pickups.length && stg.pickups[game.spawnedP].at <= game.progress + 0.05) {
+      spawnPickupDef(stg.pickups[game.spawnedP++]);
     }
 
-    // Spawn entities whose `at` is within a lookahead window and not yet spawned.
-    // Instead of tracking spawned separately, we lazily spawn from stage definition once.
-    if (!stg._spawned) {
-      stg._spawned = true;
-      stg.enemies.forEach((def) => spawnEnemy(def));
-      stg.pickups.forEach((def) => spawnPickup(def));
-      if (stg.boss) {
-        // boss actually spawns when we reach bossPhase
-        stg._bossSpawned = false;
-      }
+    // move world / entities toward +Z (player fixed at z~0, looking down -Z)
+    const move = game.speed * dt;
+    worldRoot.position.z += move;
+    if (playerMesh) {
+      game.laneX += (LANES_X[game.lane] - game.laneX) * Math.min(1, dt * 10);
+      playerMesh.position.x = game.laneX;
+      playerMesh.position.y = 0;
+      playerMesh.position.z = 0;
+      M.animateTurtleRun(playerMesh, t);
+      // face forward into tunnel (-Z)
+      playerMesh.rotation.y = Math.PI;
     }
-  }
 
-  function updatePlayer(dt) {
-    const targetY = LANE_Y[game.lane];
-    const t = 1 - Math.pow(0.001, dt / 1000); // exponential smoothing
-    game.playerY = game.playerY + (targetY - game.playerY) * t;
+    const px = game.laneX;
+    const now = performance.now();
 
-    dom.player.style.top  = (game.playerY * 100) + "%";
-    dom.player.style.left = (game.playerX * 100) + "%";
-
-    // Shield visuals
-    if (now() < game.shieldUntil) dom.player.classList.add("shield");
-    else dom.player.classList.remove("shield");
-  }
-
-  function updateEntities(dt) {
-    const stg = game.stage;
-    const speed = game.scrollSpeed; // fraction of screen per second at normal pace
-    const dx = -(speed * (dt / 1000));
-
-    for (let i = 0; i < game.entities.length; i++) {
-      const ent = game.entities[i];
-      if (!ent.alive) continue;
-
-      if (ent.type === "boss") {
-        // Boss AI: hovers on left, periodically dashes toward player, retreats.
-        const nowT = now();
-        if (nowT - ent.lastLaneShift > 1800) {
-          ent.targetLane = (ent.lane + (Math.random() < 0.5 ? -1 : 1) + 3) % 3;
-          if (ent.targetLane === ent.lane) ent.targetLane = (ent.lane + 1) % 3;
-          ent.lane = ent.targetLane;
-          ent.lastLaneShift = nowT;
+    for (const ent of [...game.entities]) {
+      ent.mesh.position.z += move;
+      if (ent.kind === "pickup") {
+        ent.mesh.rotation.y += dt * 2;
+        ent.mesh.position.y = 0.7 + Math.sin(t * 4 + ent.mesh.position.z) * 0.1;
+        const dx = ent.mesh.position.x - px;
+        const dz = ent.mesh.position.z - 0;
+        if (Math.hypot(dx, dz) < 1.85) {
+          game.pizzas += (ent.gold ? 3 : 1) * game.pizzaMult;
+          removeEntity(ent);
+          beep(ent.gold ? 880 : 660, 0.08, "triangle", 0.06);
+          updateHud();
         }
-        const targetY = LANE_Y[ent.targetLane];
-        const kt = 1 - Math.pow(0.001, dt / 1000);
-        ent.y = ent.y + (targetY - ent.y) * kt;
-
-        // Lunge cycle: chase player for ~1.4s, retreat for ~1.6s
-        if (!ent.mode) { ent.mode = "chase"; ent.modeStart = nowT; }
-        const modeAge = nowT - ent.modeStart;
-        if (ent.mode === "chase") {
-          const chaseX = 0.58; // reach range that can contact player at 0.72
-          const kx = 1 - Math.pow(0.002, dt / 1000);
-          ent.x = ent.x + (chaseX - ent.x) * kx;
-          if (modeAge > 1400) { ent.mode = "retreat"; ent.modeStart = nowT; ent.el.classList.remove("angry"); }
+      } else if (ent.kind === "enemy") {
+        if (ent.type === "ninja") {
+          ent.mesh.position.x = LANES_X[ent.baseLane] + Math.sin(t * 3 + ent.mesh.id) * 0.55;
+          ent.mesh.rotation.y += dt * 4;
         } else {
-          const restX = 0.18;
-          const kx = 1 - Math.pow(0.02, dt / 1000);
-          ent.x = ent.x + (restX - ent.x) * kx;
-          if (modeAge > 1600) { ent.mode = "chase"; ent.modeStart = nowT; ent.el.classList.add("angry"); }
+          ent.mesh.rotation.y = Math.sin(t * 2) * 0.2;
         }
-      } else {
-        ent.x += dx;
-        if (ent.type === "enemy" && ent.kind === "ninja") {
-          ent.phase += dt / 400;
-          ent.y = ent.baseY + Math.sin(ent.phase) * 0.06;
-        }
-      }
-
-      // Position DOM
-      const rect = game.arenaRect || dom.arena.getBoundingClientRect();
-      ent.el.style.left = (ent.x * 100) + "%";
-      ent.el.style.top  = (ent.y * 100) + "%";
-
-      // Off-screen left → remove
-      if (ent.x < -0.15) {
-        removeEntity(ent, false);
-      }
-    }
-
-    // Cleanup dead
-    for (let i = game.entities.length - 1; i >= 0; i--) {
-      if (!game.entities[i].alive) game.entities.splice(i, 1);
-    }
-  }
-
-  function checkCollisions() {
-    // Player collision box in fractional space
-    const px = game.playerX;
-    const py = game.playerY;
-    // generous magnet for pickups; smaller for enemy contact combat
-    const enemyR = 0.10;
-    const pickupR = 0.13;
-    const shielded = now() < game.shieldUntil;
-
-    for (let i = 0; i < game.entities.length; i++) {
-      const ent = game.entities[i];
-      if (!ent.alive) continue;
-      const dx = ent.x - px;
-      const dy = ent.y - py;
-      const dist = Math.hypot(dx, dy);
-
-      if (ent.type === "pickup") {
-        if (dist < pickupR) {
-          collectPickup(ent);
-        }
-      } else if (ent.type === "enemy") {
-        if (dist < enemyR) {
-          if (shielded) {
-            // enemies die on contact w/ shield
-            damageEnemy(ent, ent.hp);
-            continue;
-          }
-          // player walks into enemy — attack
-          attackEnemy(ent);
-        }
-      } else if (ent.type === "boss") {
-        if (dist < 0.18 && now() - (ent.lastAttack || 0) > 550) {
-          ent.lastAttack = now();
-          if (shielded) {
-            damageBoss(1);
-          } else {
-            damageBoss(1);
-            // Boss retaliates ~30% of the time; otherwise just a bounce w/ short invuln
-            if (Math.random() < 0.30) {
-              takeDamage(1);
-            } else {
-              game.invulnUntil = now() + 700;
-            }
+        const dx = ent.mesh.position.x - px;
+        const dz = ent.mesh.position.z - 0;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 1.25 && Math.abs(dz) < 1.1) {
+          // attack if roughly same lane
+          if (Math.abs(dx) < 1.1) {
+            hitEnemy(ent);
           }
         }
-      }
-    }
-  }
-
-  function collectPickup(ent) {
-    if (!ent.alive) return;
-    const doubled = now() < game.shieldUntil; // don's shield doubles pizza
-    const val = ent.gold ? 3 : 1;
-    const total = val * (doubled ? 2 : 1);
-    game.pizzas += total;
-    game.superCharge = Math.min(SUPER_TARGET, game.superCharge + (ent.gold ? 2 : 1));
-    if (game.superCharge >= SUPER_TARGET && !game.superReady) {
-      game.superReady = true;
-      toast("כוח על מוכן!");
-    }
-    updatePizzaUI();
-    updateSuperUI();
-    starPop(ent.x, ent.y);
-    if (ent.gold) sfx.gold(); else sfx.coin();
-    removeEntity(ent, true);
-  }
-
-  function attackEnemy(ent) {
-    if (!ent.alive) return;
-    attackFlash();
-    damageEnemy(ent, 1);
-  }
-
-  function damageEnemy(ent, amount) {
-    if (!ent.alive) return;
-    ent.hp -= amount;
-    if (ent.hp <= 0) {
-      shockwaveAt(ent.x, ent.y);
-      poofAt(ent.x, ent.y);
-      sfx.hit();
-      // Chance to drop pizza
-      if (Math.random() < 0.35) {
-        spawnPickup({ at: 0, lane: ent.lane, gold: Math.random() < 0.15 });
-        const dropped = game.entities[game.entities.length - 1];
-        dropped.x = ent.x;
-        dropped.y = ent.y;
-      }
-      // Small super charge on kill
-      game.superCharge = Math.min(SUPER_TARGET, game.superCharge + 1);
-      if (game.superCharge >= SUPER_TARGET && !game.superReady) {
-        game.superReady = true;
-        toast("כוח על מוכן!");
-      }
-      updateSuperUI();
-      removeEntity(ent, false);
-    } else {
-      ent.el.classList.add("hit");
-      setTimeout(() => { if (ent.el) ent.el.classList.remove("hit"); }, 220);
-      bounceEnemy(ent);
-      sfx.hit();
-    }
-  }
-
-  function bounceEnemy(ent) {
-    // Nudge enemy back to give kid breathing room
-    ent.x += 0.09;
-  }
-
-  function damageBoss(amount) {
-    if (!game.boss || !game.boss.alive) return;
-    game.bossHp -= amount;
-    game.boss.el.classList.add("angry");
-    attackFlash();
-    // Force boss into retreat so kid gets breathing room after landing a hit.
-    if (game.boss.mode !== "retreat") {
-      game.boss.mode = "retreat";
-      game.boss.modeStart = now();
-    }
-    shockwaveAt(game.boss.x, game.boss.y);
-    sfx.hit();
-    updateBossHpUI();
-    if (game.bossHp <= 0) {
-      poofAt(game.boss.x, game.boss.y);
-      poofAt(game.boss.x + 0.05, game.boss.y - 0.05);
-      poofAt(game.boss.x - 0.05, game.boss.y + 0.05);
-      removeEntity(game.boss, true);
-      game.boss = null;
-      game.progress = 1;
-    }
-  }
-
-  function takeDamage(amount) {
-    if (now() < game.invulnUntil) return;
-    if (now() < game.shieldUntil) return;
-    game.hearts -= amount;
-    updateHeartsUI();
-    dom.hearts.classList.add("hurt");
-    dom.player.classList.add("hit");
-    setTimeout(() => dom.player.classList.remove("hit"), 500);
-    game.invulnUntil = now() + 1100;
-    sfx.hurt();
-    // bounce back — brief lane wiggle
-    if (game.hearts <= 0) {
-      failStage();
-    }
-  }
-
-  // ---------- Stage end handling ----------
-  function checkStageEnd() {
-    const stg = game.stage;
-    if (!stg) return;
-
-    // Boss trigger: when non-boss progress reaches ~0.85, enter boss phase
-    if (stg.boss && !game.bossPhase && game.progress >= 0.82) {
-      game.bossPhase = true;
-      game.progress = 0.9; // freeze
-      // Spawn the boss
-      spawnBoss(stg.boss);
-      showStageBanner(stg.boss.name + "!");
-      updateBossHpUI();
-      // pizzas/enemies still on screen scroll off naturally
-    }
-
-    // Clear conditions
-    if (stg.boss) {
-      if (game.bossPhase && game.boss === null) stageCleared();
-    } else if (game.progress >= 1) {
-      // give a beat for last entities to pass, then clear
-      stageCleared();
-    }
-  }
-
-  function stageCleared() {
-    if (!game.playing) return;
-    game.playing = false;
-
-    const idx = game.stageIndex;
-    const stars = Math.max(1, Math.min(3, game.hearts));
-    if (stars > (save.stars[idx] || 0)) save.stars[idx] = stars;
-    if (idx + 1 < STAGES.length && save.unlocked < idx + 1) save.unlocked = idx + 1;
-    persistSave();
-    maybeAwardStickers();
-
-    dom.starsRow.textContent = "⭐".repeat(stars) + "☆".repeat(3 - stars);
-    dom.clearTitle.textContent = getTurtle().cheer;
-    dom.clearStats.textContent = "פיצות שנאספו: " + game.pizzas;
-    sfx.clear();
-
-    // Big celebration if this was the final boss
-    if (idx === STAGES.length - 1) {
-      celebrate("הצלנו את העיר!", 2200);
-      sfx.win();
-    } else if (stg_is_boss(idx)) {
-      celebrate("ניצחנו את הבוס!");
-    } else {
-      celebrate("כל הכבוד!");
-    }
-
-    setTimeout(() => showScreen("clear"), 900);
-  }
-
-  function stg_is_boss(idx) {
-    return !!STAGES[idx].boss;
-  }
-
-  function failStage() {
-    if (!game.playing) return;
-    game.playing = false;
-    // Friendly retry screen (never "game over")
-    setTimeout(() => showScreen("retry"), 500);
-  }
-
-  // ---------- Super ----------
-  function activateSuper() {
-    if (!game.superReady) return;
-    const t = getTurtle();
-    game.superReady = false;
-    game.superCharge = 0;
-    updateSuperUI();
-    sfx.super();
-    celebrate(t.superName + "!", 1000);
-
-    if (t.id === "leo") {
-      // Clear all on-screen enemies (visible only: x between 0..1)
-      game.entities.forEach((e) => {
-        if (e.type === "enemy" && e.x > -0.1 && e.x < 1.15) {
-          shockwaveAt(e.x, e.y);
-          removeEntity(e, true);
+        // enemy reaches player from behind-ish without being killed
+        if (ent.mesh.position.z > 1.2 && Math.abs(ent.mesh.position.x - px) < 1.0) {
+          hurtPlayer();
+          removeEntity(ent);
         }
-      });
-      if (game.boss) damageBoss(2);
-    } else if (t.id === "raph") {
-      // Clear all + screen shake
-      game.entities.forEach((e) => {
-        if (e.type === "enemy" && e.x > -0.1 && e.x < 1.15) {
-          shockwaveAt(e.x, e.y);
-          removeEntity(e, true);
-        }
-      });
-      if (game.boss) damageBoss(3);
-      shakeArena(600);
-    } else if (t.id === "don") {
-      // 5s shield
-      game.shieldUntil = now() + 5000;
-      dom.player.classList.add("shield");
-      setTimeout(() => dom.player.classList.remove("shield"), 5000);
-    } else if (t.id === "mikey") {
-      // Spawn 8 collectible pizzas near player
-      for (let i = 0; i < 8; i++) {
-        const lane = i % 3;
-        const ent = spawnPickup({ at: 0, lane: lane, gold: i % 4 === 0 });
-        ent.x = clamp(game.playerX + rand(-0.20, 0.20), 0.10, 0.95);
-        ent.y = clamp(LANE_Y[lane] + rand(-0.03, 0.03), 0.15, 0.85);
+        if (ent.mesh.position.z > 8) removeEntity(ent);
       }
     }
-  }
 
-  // ---------- Input: one-finger drag ----------
-  function laneFromY(clientY) {
-    const rect = game.arenaRect || dom.arena.getBoundingClientRect();
-    const rel = (clientY - rect.top) / rect.height;
-    // find nearest lane center
-    let best = 0, bestD = 1e9;
-    for (let i = 0; i < LANE_Y.length; i++) {
-      const d = Math.abs(rel - LANE_Y[i]);
-      if (d < bestD) { bestD = d; best = i; }
+    if (game.boss) {
+      game.boss.mesh.position.z += move * 0.15;
+      // keep boss ahead
+      if (game.boss.mesh.position.z > -6) game.boss.mesh.position.z = -6;
+      if (game.boss.mesh.position.z < -16) game.boss.mesh.position.z = -16;
+      game.boss.mesh.position.x = Math.sin(t * 1.2) * 1.5;
+      game.boss.mesh.rotation.y = Math.sin(t) * 0.3;
+      const dx = game.boss.mesh.position.x - px;
+      const dz = game.boss.mesh.position.z - 0;
+      if (Math.hypot(dx, dz) < 2.4) {
+        hitBoss();
+        if (Math.random() < 0.25 && now > game.invulnUntil) hurtPlayer();
+      }
     }
-    return best;
-  }
 
-  function onArenaDown(ev) {
-    if (!game.playing || game.paused) return;
-    game.dragging = true;
-    const t = (ev.touches && ev.touches[0]) || ev;
-    if (t && typeof t.clientY === "number") {
-      game.lane = laneFromY(t.clientY);
+    // shield destroys nearby enemies
+    if (now < game.shieldUntil) {
+      for (const ent of [...game.entities]) {
+        if (ent.kind === "enemy" && Math.hypot(ent.mesh.position.x - px, ent.mesh.position.z) < 2.2) {
+          removeEntity(ent);
+        }
+      }
     }
-  }
-  function onArenaMove(ev) {
-    if (!game.playing || game.paused) return;
-    if (!game.dragging) return;
-    const t = (ev.touches && ev.touches[0]) || ev;
-    if (t && typeof t.clientY === "number") {
-      game.lane = laneFromY(t.clientY);
-    }
-    ev.preventDefault && ev.preventDefault();
-  }
-  function onArenaUp() { game.dragging = false; }
 
-  // ---------- Pause / resume / exit ----------
-  function pauseGame() {
-    if (!game.playing) return;
-    game.paused = true;
-    dom.pauseStats.textContent = "שלב " + game.stage.world + "-" + ((game.stageIndex % 4) + 1) + " · פיצות: " + game.pizzas;
-    showScreen("pause");
-  }
-  function resumeGame() {
-    if (!game.playing) return;
-    game.paused = false;
-    game.lastTs = now();
-    showScreen("game");
-    requestAnimationFrame(gameLoop);
-  }
-  function exitToMap() {
-    game.playing = false;
-    game.paused = false;
-    // Clear entities
-    game.entities.forEach((e) => { if (e.el && e.el.parentNode) e.el.parentNode.removeChild(e.el); });
-    game.entities = [];
-    game.boss = null;
-    if (game.stage) game.stage._spawned = false;
-    buildMap();
-    showScreen("map");
-  }
+    // camera follow
+    camera.position.x += (game.laneX * 0.35 - camera.position.x) * 0.08;
+    camera.position.y = 3.1;
+    camera.position.z = 7.2;
+    camera.lookAt(game.laneX * 0.2, 1.1, -4);
 
-  function retryStage() {
-    if (game.stage) game.stage._spawned = false;
-    startStage(game.stageIndex);
-  }
-
-  function continueFromClear() {
-    if (game.stage) game.stage._spawned = false;
-    const nextIdx = game.stageIndex + 1;
-    if (nextIdx < STAGES.length && save.unlocked >= nextIdx) {
-      buildMap();
-      showScreen("map");
-    } else {
-      buildMap();
-      showScreen("map");
+    if (!stg.boss && game.progress >= 1) finishStage(false);
+    if (stg.boss && game.progress >= 1.15 && game.bossHp > 0) {
+      // keep going until boss dies — gently pull boss closer
+      if (game.boss) game.boss.mesh.position.z += dt * 1.5;
     }
   }
 
-  // ==========================================================
-  // Wire up UI
-  // ==========================================================
+  function updateShowcase(t) {
+    showcaseRoot.rotation.y = t * 0.25;
+    showcaseTurtles.forEach((mesh, i) => {
+      M.animateTurtleIdle(mesh, t + i);
+      mesh.rotation.y = t * 0.6 + i;
+    });
+    camera.position.set(Math.sin(t * 0.2) * 1.5, 3.4, 9);
+    camera.lookAt(0, 1.0, 0);
+    worldRoot.position.z = (t * 2) % 20;
+  }
+
+  function frame() {
+    const dt = Math.min(0.05, clock.getDelta());
+    const t = clock.elapsedTime;
+    if (mode === "game") updateGame(dt, t);
+    else if (mode === "showcase") updateShowcase(t);
+    else {
+      camera.position.set(0, 4, 10);
+      camera.lookAt(0, 1, -5);
+    }
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  function onResize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+  }
+  window.addEventListener("resize", onResize);
+
+  // ---------- Bind UI ----------
   function bind() {
-    $("btn-start").addEventListener("click", () => {
-      sfx.tap();
-      audio(); // unlock audio on user gesture
-      buildTurtlePicker();
-      showScreen("pick");
+    $("btn-start").addEventListener("click", () => { unlockAudio(); beep(520, 0.1, "triangle", 0.07); buildPicker(); showScreen("pick"); });
+    $("btn-back-start").addEventListener("click", () => showScreen("start"));
+    $("btn-map-repick").addEventListener("click", () => { buildPicker(); showScreen("pick"); });
+    $("btn-stickers").addEventListener("click", () => { buildStickers(); showScreen("stickers"); });
+    $("btn-stickers-back").addEventListener("click", () => showScreen("map"));
+    $("btn-pause").addEventListener("click", () => {
+      if (!game.running) return;
+      game.paused = true;
+      $("pause-stats").textContent = $("stage-label").textContent + " · 🍕 " + game.pizzas;
+      showScreen("pause");
     });
-    $("btn-back-start").addEventListener("click", () => { sfx.tap(); showScreen("start"); });
-    $("btn-stickers").addEventListener("click", () => { sfx.tap(); buildStickers(); showScreen("stickers"); });
-    $("btn-stickers-back").addEventListener("click", () => { sfx.tap(); showScreen("map"); });
-    $("btn-map-repick").addEventListener("click", () => { sfx.tap(); buildTurtlePicker(); showScreen("pick"); });
-    $("btn-pause").addEventListener("click", () => { sfx.tap(); pauseGame(); });
-    $("btn-resume").addEventListener("click", () => { sfx.tap(); resumeGame(); });
-    $("btn-exit-map").addEventListener("click", () => { sfx.tap(); exitToMap(); });
-    $("btn-clear-continue").addEventListener("click", () => { sfx.tap(); continueFromClear(); });
-    $("btn-retry").addEventListener("click", () => { sfx.tap(); retryStage(); });
-    $("btn-retry-map").addEventListener("click", () => { sfx.tap(); exitToMap(); });
-
-    dom.btnSuper.addEventListener("click", () => {
-      if (game.superReady) { sfx.tap(); activateSuper(); }
+    $("btn-resume").addEventListener("click", () => { game.paused = false; showScreen("game"); });
+    $("btn-exit-map").addEventListener("click", () => {
+      game.running = false;
+      if (playerMesh) playerMesh.visible = false;
+      showcaseRoot.visible = false;
+      buildMap();
+      showScreen("map");
+      mode = "idle";
     });
-
-    // Arena drag input — support both touch and mouse
-    const arena = dom.arena;
-    arena.addEventListener("touchstart", onArenaDown, { passive: true });
-    arena.addEventListener("touchmove",  onArenaMove, { passive: false });
-    arena.addEventListener("touchend",   onArenaUp);
-    arena.addEventListener("touchcancel", onArenaUp);
-    arena.addEventListener("mousedown",  onArenaDown);
-    arena.addEventListener("mousemove",  onArenaMove);
-    arena.addEventListener("mouseup",    onArenaUp);
-    arena.addEventListener("mouseleave", onArenaUp);
-
-    window.addEventListener("resize", refreshArenaRect);
-    window.addEventListener("orientationchange", refreshArenaRect);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden && game.playing && !game.paused) pauseGame();
+    $("btn-retry-map").addEventListener("click", () => {
+      game.running = false;
+      if (playerMesh) playerMesh.visible = false;
+      showcaseRoot.visible = false;
+      buildMap();
+      showScreen("map");
+      mode = "idle";
     });
+    $("btn-retry").addEventListener("click", () => startStage(game.stageIndex));
+    $("btn-clear-continue").addEventListener("click", () => {
+      if (playerMesh) playerMesh.visible = false;
+      showcaseRoot.visible = false;
+      buildMap();
+      showScreen("map");
+      mode = "idle";
+    });
+    $("btn-super").addEventListener("click", activateSuper);
   }
 
-  // ==========================================================
-  // Boot
-  // ==========================================================
-  function boot() {
-    bind();
-    applyTurtleToPlayer();
-    if (save.turtleId) buildMap();
-    else buildTurtlePicker();
-    showScreen("start");
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  // boot
+  buildShowcase();
+  buildPicker();
+  $("map-turtle-label").textContent = "עם " + getTurtle().name;
+  bind();
+  showScreen("start");
+  onResize();
+  requestAnimationFrame(frame);
 })();
