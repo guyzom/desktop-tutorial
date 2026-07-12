@@ -1,262 +1,351 @@
 #!/usr/bin/env python3
-"""Generate a dense ~100-page Hebrew academic anthology for hebrew-lualatex-pdf."""
+"""Generate a ~100-page Hebrew academic anthology following content-style.md.
+
+Density DNA (skill references/content-style.md):
+  - prose is the default vehicle
+  - ~1–2 colored boxes per chapter (not a wall of boxes)
+  - ≥1 numbered equation per chapter (spine)
+  - chapter ≈ idea → (optional box) → numbered eq → short intuition
+  - box share target ~⅓; checker warns if >55%
+  - gray tablebox is OK (not counted as colored box)
+"""
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "anthology.tex"
 
-# Topic banks — real study-guide style units (idea → box → equation → intuition)
 PARTS = [
   ("ארכיטקטורת מעבדים", [
-    ("צנרת בסיסית", "pipeline", "CPI", r"\mathrm{CPI}_{\mathrm{ideal}}=1"),
-    ("סכסוכי נתונים", "hazards", "RAW", r"T_{\mathrm{stall}}=N_{\mathrm{load\text{-}use}}\cdot 1"),
-    ("סכסוכי בקרה", "control", "branch", r"P_{\mathrm{mispredict}}\cdot T_{\mathrm{penalty}}"),
-    ("קידום אוגרים", "forward", "bypass", r"T_{\mathrm{fwd}} \ll T_{\mathrm{stall}}"),
-    ("חיזוי קפיצות", "branchpred", "BHT", r"A = 1 - P_{\mathrm{mis}}"),
-    ("סופרסקלר", "superscalar", "IPC", r"\mathrm{IPC}_{\mathrm{peak}} = W"),
-    ("ביצוע מחוץ לסדר", "ooo", "ROB", r"N_{\mathrm{ROB}} \ge W\cdot L"),
-    ("רישום מחדש", "rename", "RAT", r"\mathrm{RAT}: a_r \mapsto p_i"),
+    ("צנרת בסיסית", "pipeline", "CPI", r"\mathrm{CPI}_{\mathrm{ideal}}=1",
+     "def", "צנרת מפרקת הוראה לשלבים חופפים בזמן כך שבמצב יציב יוצאת הוראה בכל מחזור."),
+    ("סכסוכי נתונים", "hazards", "RAW", r"T_{\mathrm{stall}}=N_{\mathrm{load\text{-}use}}",
+     "warn", "גם עם קידום מלא, \\code{lw} ואחריו שימוש דורשים \\en{stall} של מחזור."),
+    ("סכסוכי בקרה", "control", "branch", r"P_{\mathrm{mispredict}}\\cdot T_{\mathrm{penalty}}",
+     "key", "מחיר קפיצה שגויה הוא מכפלת ההסתברות בעונש במחזורים."),
+    ("קידום אוגרים", "forward", "bypass", r"T_{\mathrm{fwd}} \\ll T_{\mathrm{stall}}",
+     "def", "קידום מעביר תוצאה מ־\\en{EX/MEM} או \\en{MEM/WB} בלי לחכות ל־\\en{WB}."),
+    ("חיזוי קפיצות", "branchpred", "BHT", r"A = 1 - P_{\mathrm{mis}}",
+     "note", "דיוק החיזוי $A$ הוא המשלים של שיעור השגיאה."),
+    ("סופרסקלר", "superscalar", "IPC", r"\\mathrm{IPC}_{\\mathrm{peak}} = W",
+     "def", "רוחב השיגור $W$ הוא חסם עליון ל־\\en{IPC}, לא הערך הטיפוסי."),
+    ("ביצוע מחוץ לסדר", "ooo", "ROB", r"N_{\\mathrm{ROB}} \\ge W\\cdot L",
+     "key", "גודל ה־\\en{ROB} חייב לכסות את חלון הביצוע $W\\cdot L$."),
+    ("רישום מחדש", "rename", "RAT", r"\\mathrm{RAT}: a_r \\mapsto p_i",
+     "def", "ה־\\en{RAT} ממפה אוגר ארכיטקטוני לאוגר פיזיקלי ושובר תלויות־שם."),
   ]),
   ("היררכיית זיכרון", [
-    ("מטמון L1", "l1", "AMAT", r"T_{\mathrm{avg}}=T_h+r_m T_m"),
-    ("מטמון L2/L3", "l2", "inclusive", r"T_{\mathrm{avg}}=T_{L1}+r_1(T_{L2}+r_2 T_{\mathrm{mem}})"),
-    ("מדיניות החלפה", "repl", "LRU", r"C_{\mathrm{conflict}} \downarrow \text{ with associativity}"),
-    ("מקומיות", "locality", "temporal", r"P(\mathrm{reuse}\mid t) \propto e^{-t/\tau}"),
-    ("TLB ותרגום", "tlb", "VPN", r"T_{\mathrm{addr}}=T_{\mathrm{TLB}}+r_{\mathrm{TLB}}T_{\mathrm{PTW}}"),
-    ("זיכרון וירטואלי", "vm", "page", r"VA = VPN \| offset"),
-    ("קוהרנטיות מטמונים", "coherency", "MESI", r"S \to M \text{ on write}"),
-    ("רוחב פס זיכרון", "membw", "bandwidth", r"BW = f\cdot W\cdot U"),
+    ("מטמון L1", "l1", "AMAT", r"T_{\\mathrm{avg}}=T_h+r_m T_m",
+     "key", "\\en{AMAT} הוא המדד היחיד שמאחד \\en{hit time} ו־\\en{miss rate}."),
+    ("מטמון L2/L3", "l2", "inclusive", r"T_{\\mathrm{avg}}=T_{L1}+r_1(T_{L2}+r_2 T_{\\mathrm{mem}})",
+     "def", "נוסחת הרמות משרשרת עונשים לפי שיעורי החמצה בכל דרג."),
+    ("מדיניות החלפה", "repl", "LRU", r"C_{\\mathrm{miss}} = C_{\\mathrm{comp}}+C_{\\mathrm{cap}}+C_{\\mathrm{conf}}",
+     "note", "שלוש ה־C: compulsory, capacity, conflict — כל אחת דורשת טיפול אחר."),
+    ("מקומיות", "locality", "temporal", r"P(\\mathrm{reuse}\\mid t) \\propto e^{-t/\\tau}",
+     "def", "מקומיות זמנית דועכת עם הזמן; מטמון מנצל את הזנב הקצר."),
+    ("TLB ותרגום", "tlb", "VPN", r"T_{\\mathrm{addr}}=T_{\\mathrm{TLB}}+r_{\\mathrm{TLB}}T_{\\mathrm{PTW}}",
+     "key", "החמצת \\en{TLB} יקרה כי הולכים ל־\\en{page walk}."),
+    ("זיכרון וירטואלי", "vm", "page", r"VA = VPN \\| offset",
+     "def", "כתובת וירטואלית מפורקת למספר עמוד והיסט בתוך העמוד."),
+    ("קוהרנטיות מטמונים", "coherency", "MESI", r"S \\xrightarrow{\\mathrm{write}} M",
+     "warn", "כתיבה במצב Shared דורשת פסילת עותקים לפני מעבר ל־Modified."),
+    ("רוחב פס זיכרון", "membw", "bandwidth", r"BW = f\\cdot W\\cdot U",
+     "key", "רוחב הפס הוא תדר $\\times$ רוחב $\\times$ ניצולת — לא רק תדר השעון."),
   ]),
   ("מערכות הפעלה", [
-    ("תהליכים וחוטים", "proc", "PCB", r"N_{\mathrm{ready}} = N - N_{\mathrm{blocked}}"),
-    ("תזמון מעבד", "sched", "CFS", r"vruntime_i += \Delta t \cdot w_0/w_i"),
-    ("סנכרון", "sync", "mutex", r"P(\mathrm{contention}) \propto N_{\mathrm{cores}}"),
-    ("קיפאון", "deadlock", "Coffman", r"\nexists\, \mathrm{cycle} \Rightarrow \mathrm{safe}"),
-    ("ניהול זיכרון", "memman", "buddy", r"2^k \text{ blocks}"),
-    ("קלט/פלט", "io", "DMA", r"T_{\mathrm{IO}}=T_{\mathrm{setup}}+S/BW"),
-    ("מערכות קבצים", "fs", "inode", r"S = n_{\mathrm{blocks}}\cdot B"),
-    ("וירטואליזציה", "virt", "VMEXIT", r"T_{\mathrm{virt}}=T_{\mathrm{guest}}+f_{\mathrm{exit}}T_{\mathrm{exit}}"),
+    ("תהליכים וחוטים", "proc", "PCB", r"N_{\\mathrm{ready}} = N - N_{\\mathrm{blocked}}",
+     "def", "תור המוכנים הוא מה שנשאר אחרי חסימות I/O וסנכרון."),
+    ("תזמון מעבד", "sched", "CFS", r"vruntime_i += \\Delta t \\cdot w_0/w_i",
+     "key", "\\en{CFS} מאזן הוגנות דרך \\en{vruntime} משוקלל."),
+    ("סנכרון", "sync", "mutex", r"P(\\mathrm{contention}) \\propto N_{\\mathrm{cores}}",
+     "warn", "נעילה גלובלית לא משתלבת עם מספר ליבות — צריך פיצול."),
+    ("קיפאון", "deadlock", "Coffman", r"\\mathrm{safe} \\Leftarrow \\nexists\\,\\mathrm{cycle}",
+     "thm", "בלי מעגל בהקצאת משאבים אין קיפאון."),
+    ("ניהול זיכרון", "memman", "buddy", r"S_k = 2^k",
+     "def", "שיטת buddy מקצה בלוקים בחזקות שתיים וממזגת שכנים חופשיים."),
+    ("קלט/פלט", "io", "DMA", r"T_{\\mathrm{IO}}=T_{\\mathrm{setup}}+S/BW",
+     "key", "\\en{DMA} מוריד את המעבד ממסלול ההעתקה אחרי \\en{setup}."),
+    ("מערכות קבצים", "fs", "inode", r"S = n_{\\mathrm{blocks}}\\cdot B",
+     "def", "גודל קובץ נגזר ממספר הבלוקים וגודל בלוק."),
+    ("וירטואליזציה", "virt", "VMEXIT", r"T_{\\mathrm{virt}}=T_{\\mathrm{guest}}+f_{\\mathrm{exit}}T_{\\mathrm{exit}}",
+     "warn", "תדירות \\en{VMEXIT} גבוהה הורסת את יתרון הווירטואליזציה."),
   ]),
   ("רשתות ותקשורת", [
-    ("מודל השכבות", "layers", "OSI", r"L_i \to L_{i-1}"),
-    ("TCP", "tcp", "cwnd", r"cwnd_{t+1}=cwnd_t + 1/\mathrm{cwnd}_t"),
-    ("ניתוב", "routing", "SPF", r"d(v)=\min_u d(u)+w(u,v)"),
-    ("עומסים ו־QoS", "qos", "latency", r"L = L_{\mathrm{prop}}+L_{\mathrm{queue}}+L_{\mathrm{tx}}"),
-    ("אבטחת רשת", "netsec", "TLS", r"\mathrm{TLS} = \mathrm{handshake}+\mathrm{record}"),
-    ("CDN ומטמונים", "cdn", "HIT", r"T_{\mathrm{user}}=T_{\mathrm{edge}}+r_{\mathrm{miss}}T_{\mathrm{origin}}"),
+    ("מודל השכבות", "layers", "OSI", r"L_i \\to L_{i-1}",
+     "def", "כל שכבה מוסיפה כותרת ומעבירה מטה — חוזה ברור בין שכבות."),
+    ("TCP", "tcp", "cwnd", r"cwnd_{t+1}=cwnd_t + 1/\\mathrm{cwnd}_t",
+     "key", "העלאת \\en{cwnd} ב־\\en{AIMD} היא זהירה אחרי \\en{slow start}."),
+    ("ניתוב", "routing", "SPF", r"d(v)=\\min_u\\, d(u)+w(u,v)",
+     "def", "דייקסטרה בונה מרחקים קצרים ביותר מעץ שורש."),
+    ("עומסים ו־QoS", "qos", "latency", r"L = L_{\\mathrm{prop}}+L_{\\mathrm{queue}}+L_{\\mathrm{tx}}",
+     "key", "השהיה היא סכום התפשטות, תור ושידור — לא רק רוחב פס."),
+    ("אבטחת רשת", "netsec", "TLS", r"\\mathrm{TLS}=\\mathrm{handshake}+\\mathrm{record}",
+     "def", "\\en{TLS} מפריד משא ומתן מפתחות מרישום הנתונים המוצפן."),
+    ("CDN ומטמונים", "cdn", "HIT", r"T_{\\mathrm{user}}=T_{\\mathrm{edge}}+r_{\\mathrm{miss}}T_{\\mathrm{origin}}",
+     "key", "\\en{CDN} הוא \\en{AMAT} לרשת: פגיעה בקצה מול החמצה למקור."),
   ]),
   ("אלגוריתמים ומבני נתונים", [
-    ("סיבוכיות", "complexity", "BigO", r"T(n)=\Theta(n\log n)"),
-    ("מיונים", "sort", "quicksort", r"T(n)=2T(n/2)+\Theta(n)"),
-    ("גרפים", "graphs", "BFS", r"|E|_{\mathrm{tree}}=|V|-1"),
-    ("תכנון דינמי", "dp", "opt", r"OPT(i)=\min_j OPT(j)+c(j,i)"),
-    ("גיבוב", "hash", "chaining", r"\alpha = n/m"),
-    ("עצים מאוזנים", "trees", "AVL", r"h = O(\log n)"),
-    ("זרימה ברשתות", "flow", "maxflow", r"v(f)=\sum_{e\out{s}} f(e)"),
-    ("קירובים", "approx", "ratio", r"ALG \le \rho\cdot OPT"),
+    ("סיבוכיות", "complexity", "BigO", r"T(n)=\\Theta(n\\log n)",
+     "def", "סימון אסימפטוטי מתעלם מקבועים ומתמקד בסדר הגדילה."),
+    ("מיונים", "sort", "quicksort", r"T(n)=2T(n/2)+\\Theta(n)",
+     "key", "פיצול מאוזן נותן $n\\log n$; פיצול גרוע מחזיר $n^2$."),
+    ("גרפים", "graphs", "BFS", r"|E|_{\\mathrm{tree}}=|V|-1",
+     "def", "עץ פורש על $|V|$ קודקודים מכיל בדיוק $|V|-1$ קשתות."),
+    ("תכנון דינמי", "dp", "opt", r"OPT(i)=\\min_j OPT(j)+c(j,i)",
+     "key", "אופטימום נבנה מאופטימומים של תתי־בעיות חופפות."),
+    ("גיבוב", "hash", "chaining", r"\\alpha = n/m",
+     "def", "מקדם העומס $\\alpha$ שולט באורך השרשראות הממוצע."),
+    ("עצים מאוזנים", "trees", "AVL", r"h = O(\\log n)",
+     "thm", "איזון גבהים מבטיח חיפוש לוגריתמי."),
+    ("זרימה ברשתות", "flow", "maxflow", r"v(f)=\\sum_{e \\ni s} f(e)",
+     "def", "ערך הזרימה הוא סכום היציאות מהמקור."),
+    ("קירובים", "approx", "ratio", r"ALG \\le \\rho\\cdot OPT",
+     "key", "יחס הקירוב $\\rho$ הוא ההבטחה כש־\\en{NP}-קשה מונע דיוק."),
   ]),
   ("למידת מכונה", [
-    ("רגרסיה לינארית", "linreg", "MSE", r"\hat\beta=(X^\top X)^{-1}X^\top y"),
-    ("סיווג", "clf", "logistic", r"p=\sigma(w^\top x)"),
-    ("רגולריזציה", "reg", "ridge", r"\mathcal{L}=\|y-Xw\|^2+\lambda\|w\|^2"),
-    ("רשתות עצביות", "nn", "backprop", r"\delta^{(l)}=(W^{(l+1)})^\top\delta^{(l+1)}\odot\sigma'(z^{(l)})"),
-    ("הכללה", "gen", "VC", r"R(h)\le\hat R(h)+O\!\left(\sqrt{\frac{d}{n}}\right)"),
-    ("למידה לא מפוקחת", "unsup", "kmeans", r"J=\sum_{k=1}^{K}\sum_{x\in C_k}\|x-\mu_k\|^2"),
-    ("הטמעות", "embed", "word2vec", r"\max \sum_t \log p(w_{t+j}\mid w_t)"),
+    ("רגרסיה לינארית", "linreg", "MSE", r"\\hat\\beta=(X^\\top X)^{-1}X^\\top y",
+     "def", "פחות ריבועים נותן את האומדן הליניארי בצורת מטריצה סגורה."),
+    ("סיווג", "clf", "logistic", r"p=\\sigma(w^\\top x)",
+     "key", "לוגיסטי ממפה ציון ליניארי להסתברות דרך $\\sigma$."),
+    ("רגולריזציה", "reg", "ridge", r"\\mathcal{L}=\\|y-Xw\\|^2+\\lambda\\|w\\|^2",
+     "warn", "בלי $\\lambda$ המודל משנן רעש; עם $\\lambda$ גדול מדי הוא מפספס אות."),
+    ("רשתות עצביות", "nn", "backprop", r"\\delta^{(l)}=(W^{(l+1)})^\\top\\delta^{(l+1)}\\odot\\sigma'(z^{(l)})",
+     "def", "שגיאה מתפשטת אחורה דרך היעקוביאן של כל שכבה."),
+    ("הכללה", "gen", "VC", r"R(h)\\le\\hat R(h)+O\\!\\left(\\sqrt{d/n}\\right)",
+     "thm", "פער הכללה קטן כש־$n$ גדול ביחס לסיבוכיות $d$."),
+    ("למידה לא מפוקחת", "unsup", "kmeans", r"J=\\sum_k\\sum_{x\\in C_k}\\|x-\\mu_k\\|^2",
+     "key", "\\en{k-means} ממזער ריבועי מרחק למרכזים — תלוי באתחול."),
+    ("הטמעות", "embed", "word2vec", r"\\max \\sum_t \\log p(w_{t+j}\\mid w_t)",
+     "def", "הטמעה לומדת הקשר מקומי: מילים קרובות מקבלות וקטורים קרובים."),
   ]),
   ("חישוב קוונטי", [
-    ("הקיוביט", "qubit", "Bloch", r"\ket\psi=\cos\tfrac\theta2\ket0+e^{i\varphi}\sin\tfrac\theta2\ket1"),
-    ("שערים בסיסיים", "gates", "Hadamard", r"H\ket0=\ket{+}"),
-    ("שזירה", "entangle", "Bell", r"\ket{\Phi^+}=\tfrac1{\sqrt2}(\ket{00}+\ket{11})"),
-    ("אי־שכפול", "noclone", "no-cloning", r"\nexists U:\ U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi"),
-    ("טלפורטציה", "teleport", "EPR", r"\ket\psi_B = X^{m_2}Z^{m_1}\ket\psi"),
-    ("אלגוריתם גרובר", "grover", "oracle", r"O(\sqrt N)\ \mathrm{queries}"),
-    ("שור של שור", "shor", "period", r"a^r \equiv 1 \pmod N"),
-    ("קודים לתיקון שגיאות", "qec", "surface", r"d_{\mathrm{code}} \ge 2t+1"),
-    ("VQE", "vqe", "ansatz", r"E(\theta)=\bra{\psi(\theta)}H\ket{\psi(\theta)}"),
-    ("רעש ומדידה", "noise", "depolarizing", r"\mathcal{E}(\rho)=(1-p)\rho+p\tfrac{I}{2}"),
+    ("הקיוביט", "qubit", "Bloch", r"\\ket\\psi=\\cos\\tfrac\\theta2\\ket0+e^{i\\varphi}\\sin\\tfrac\\theta2\\ket1",
+     "def", "מצב טהור הוא נקודה על כדור בלוך — שני פרמטרים ממשיים."),
+    ("שערים בסיסיים", "gates", "Hadamard", r"H\\ket0=\\ket{+}",
+     "key", "הדמרד יוצר סופרפוזיציה שווה מ־$\\ket0$."),
+    ("שזירה", "entangle", "Bell", r"\\ket{\\Phi^+}=\\tfrac1{\\sqrt2}(\\ket{00}+\\ket{11})",
+     "def", "מצב בל הוא שזירה מקסימלית לשני קיוביטים."),
+    ("אי־שכפול", "noclone", "no-cloning", r"\\nexists U:\\ U(\\ket\\psi\\otimes\\ket0)=\\ket\\psi\\otimes\\ket\\psi",
+     "thm", "אין העתקה אוניטרית של מצב שרירותי."),
+    ("טלפורטציה", "teleport", "EPR", r"\\ket\\psi_B = X^{m_2}Z^{m_1}\\ket\\psi",
+     "key", "שתי סיביות קלאסיות + שזירה משחזרות את המצב אצל בוב."),
+    ("אלגוריתם גרובר", "grover", "oracle", r"O(\\sqrt N)\\ \\mathrm{queries}",
+     "def", "חיפוש לא ממוין מאיץ ריבועית מול סריקה קלאסית."),
+    ("שור", "shor", "period", r"a^r \\equiv 1 \\pmod N",
+     "key", "מציאת הסדר $r$ מפרקת את $N$ בפולינום."),
+    ("קודים לתיקון שגיאות", "qec", "surface", r"d_{\\mathrm{code}} \\ge 2t+1",
+     "def", "מרחק הקוד קובע כמה שגיאות אפשר לתקן."),
+    ("VQE", "vqe", "ansatz", r"E(\\theta)=\\bra{\\psi(\\theta)}H\\ket{\\psi(\\theta)}",
+     "note", "לולאה היברידית: מעגל מפרמטרי + אופטימיזציה קלאסית."),
+    ("רעש ומדידה", "noise", "depolarizing", r"\\mathcal{E}(\\rho)=(1-p)\\rho+p\\tfrac{I}{2}",
+     "warn", "רעש דה־פולריזציה מערבב את המצב עם הזהות — סימולציה אידיאלית מטעה."),
   ]),
   ("אבטחה וקריפטוגרפיה", [
-    ("הצפנה סימטרית", "sym", "AES", r"C = E_K(P)"),
-    ("מפתח ציבורי", "pubkey", "RSA", r"c \equiv m^e \pmod n"),
-    ("חתימות", "sig", "verify", r"\mathsf{Vrfy}(pk,\sigma,m)=1"),
-    ("גיבוב קריפטוגרפי", "hashc", "SHA", r"H:\{0,1\}^*\to\{0,1\}^n"),
-    ("פרוטוקולי אימות", "auth", "challenge", r"\mathsf{Adv} \le \varepsilon"),
-    ("ערוץ מאובטח", "securech", "AEAD", r"\mathsf{Enc}_{k}(nonce, aad, pt)"),
+    ("הצפנה סימטרית", "sym", "AES", r"C = E_K(P)",
+     "def", "מפתח אחד מצפין ומפענח; סודיות המפתח היא הכל."),
+    ("מפתח ציבורי", "pubkey", "RSA", r"c \\equiv m^e \\pmod n",
+     "key", "הצפנה במפתח ציבורי; פיענוח רק למי שמחזיק $d$."),
+    ("חתימות", "sig", "verify", r"\\mathsf{Vrfy}(pk,\\sigma,m)=1",
+     "def", "חתימה מאמתת מקור ושלמות בלי לחשוף מפתח פרטי."),
+    ("גיבוב קריפטוגרפי", "hashc", "SHA", r"H:\\{0,1\\}^*\\to\\{0,1\\}^n",
+     "key", "עמידות להתנגשות חשובה יותר מאורך הפלט לבדו."),
+    ("פרוטוקולי אימות", "auth", "challenge", r"\\mathsf{Adv} \\le \\varepsilon",
+     "thm", "פרוטוקול בטוח אם יתרון היריב זניח."),
+    ("ערוץ מאובטח", "securech", "AEAD", r"\\mathsf{Enc}_k(\\mathrm{nonce},\\mathrm{aad},\\mathrm{pt})",
+     "def", "\\en{AEAD} מצפין ומאמת יחד — כולל נתונים נלווים."),
   ]),
 ]
 
-ASM_SNIPPETS = [
-("""add  $t0, $s0, $s1
-sub  $t2, $t0, $s2
-lw   $t3, 0($t0)
-addi $t4, $t3, 4""", "RAW on \\code{\\$t0}; load-use needs a stall"),
-("""beq  $t0, $t1, L1
-add  $t2, $t3, $t4
-L1:  nop""", "control hazard after a branch"),
-("""lw   $t0, 0($s0)
-lw   $t1, 4($s0)
-add  $t2, $t0, $t1""", "two loads then dependent add"),
-]
 
 def en(s):
     return r"\en{" + s + "}"
 
-def chapter(part_i, ch_i, title, key, keyword, eq_tex, total_ch_global):
-    """Emit one dense chapter (~1.5–2.5pp target)."""
+
+def latex_cmd(s: str) -> str:
+    """Collapse accidental double-backslashes in raw eq strings to single TeX cmds."""
+    while "\\" * 2 in s:
+        s = s.replace("\\" * 2, "\\")
+    return s
+
+
+BOX_ENV = {
+    "def": ("defbox", "הגדרה"),
+    "thm": ("thmbox", "משפט"),
+    "key": ("keybox", "רעיון מפתח"),
+    "warn": ("warnbox", "מלכודת"),
+    "note": ("notebox", "הערה"),
+    "ex": ("exbox", "דוגמה"),
+}
+
+
+def chapter(i, title, key, keyword, eq_tex, box_kind, box_body):
+    """content-style.md chapter: 1 box, ≥1 numbered eq, short intuition, ≤2 prose paras."""
+    env, label = BOX_ENV[box_kind]
+    eq_tex = latex_cmd(eq_tex)
     lines = []
     lines.append(f"\\chapter{{{title}}}")
     lines.append(f"\\label{{ch:{key}}}")
     lines.append("")
-    # Opening
+    # One framing sentence (not a soft intro paragraph)
     lines.append(
-        f"הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״{title}״. "
-        f"המילה המנחה היא {en(keyword)}; כל הנוסחאות והדוגמאות משרתות אותו."
+        f"היחידה נסגרת סביב {en(keyword)}: הגדרה, מדד, ומה נשבר כשמתעלמים ממנו."
     )
     lines.append("")
-    # Definition box
-    lines.append(f"\\begin{{defbox}}[frametitle={{הגדרה — {title}}}]")
-    lines.append(
-        f"מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. "
-        f"בסימון מקוצר: המדד המרכזי הוא {en(keyword)}."
-    )
-    lines.append("\\end{defbox}")
+    # Exactly ONE colored box (semantic highlight — not a box wall)
+    lines.append(f"\\begin{{{env}}}[frametitle={{{label} — {title}}}]")
+    lines.append(box_body)
+    lines.append(f"\\end{{{env}}}")
     lines.append("")
-    # Numbered equation
+    # Numbered equation (spine)
     lines.append("\\begin{equation}")
     lines.append(f"\\label{{eq:{key}}}")
     lines.append(eq_tex)
     lines.append("\\end{equation}")
+    lines.append("")
+    # Short intuition (1–2 lines of prose — content-style §3)
     lines.append(
-        f"משוואה~\\eqref{{eq:{key}}} היא עמוד השדרה של הפרק. "
-        f"האינטואיציה: כל שיפור ב־{en(keyword)} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה."
+        f"המשמעות של~\\eqref{{eq:{key}}}: מודדים את {en(keyword)} קודם, ורק אחר כך צוללים לרכיב."
     )
     lines.append("")
-    # Key idea
-    lines.append("\\begin{keybox}[frametitle={רעיון מפתח}]")
-    lines.append(
-        f"אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\\eqref{{eq:{key}}}. "
-        f"זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת."
-    )
-    lines.append("\\end{keybox}")
-    lines.append("")
-    # Second display (unnumbered) + prose
-    lines.append("הצורה המורחבת שמופיעה בתרגילים:")
-    lines.append("\\[")
-    lines.append(eq_tex.replace("=", r"=\,", 1) if "=" in eq_tex else eq_tex)
-    lines.append("\\]")
-    lines.append(
-        f"בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. "
-        f"כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\\eqref{{eq:{key}}}."
-    )
-    lines.append("")
-    # Occasional table
-    if ch_i % 2 == 0:
+    # Second numbered eq often (target ≥1–3 eqs/ch) — still prose-default, not more boxes
+    if i % 2 == 1:
+        lines.append("\\begin{equation}")
+        lines.append(f"\\label{{eq:{key}-check}}")
+        lines.append(r"\Delta M \propto \Delta x_{\mathrm{dom}}")
+        lines.append("\\end{equation}")
+        lines.append(
+            f"כאן $M$ הוא {en(keyword)};~\\eqref{{eq:{key}-check}} מזכירה לחפש רגישות, לא מיקרו־אופטימיזציה."
+        )
+        lines.append("")
+    # Gray table occasionally (neutral tablebox — not a colored box)
+    if i % 4 == 0:
         lines.append("\\begin{tablebox}\\centering\\small")
         lines.append("\\begin{tabular}{@{}lll@{}}")
         lines.append("\\toprule")
-        lines.append(f"\\textbf{{מצב}} & \\textbf{{מדד}} & \\textbf{{השפעה על {en(keyword)}}}\\\\")
+        lines.append(f"\\textbf{{מצב}} & \\textbf{{סדר גודל}} & \\textbf{{פעולה}}\\\\")
         lines.append("\\midrule")
-        lines.append(f"אידיאלי & $1.0\\times$ & חסם תחתון\\\\")
-        lines.append(f"טיפוסי & $1.2$–$1.8\\times$ & כולל תלויות\\\\")
-        lines.append(f"גרוע & $\\ge 2\\times$ & דורש תיקון מבני\\\\")
+        lines.append(f"תקין & $\\sim 1\\times$ & שמור מדידה\\\\")
+        lines.append(f"חשוד & $1.5$–$2\\times$ & בודקים תלות\\\\")
+        lines.append(f"שבור & $\\ge 2\\times$ & תיקון מבני\\\\")
         lines.append("\\bottomrule")
         lines.append("\\end{tabular}")
-        lines.append(f"\\tabcap{{סדרי גודל ל־{en(keyword)} בפרק~\\ref{{ch:{key}}}.}}")
+        lines.append(f"\\tabcap{{כיול מהיר ל־{en(keyword)}.}}")
         lines.append("\\end{tablebox}")
         lines.append("")
-    # Occasional listing
-    if ch_i % 3 == 0:
-        code, comment = ASM_SNIPPETS[ch_i % len(ASM_SNIPPETS)]
-        lines.append("\\begin{exbox}[frametitle={דוגמה — רצף מובחן}]")
-        lines.append(f"הרצף מדגים לחץ על {en(keyword)} ({comment}):")
+    if i % 5 == 0:
+        lines.append("רצף שממחיש לחץ על המדד:")
         lines.append("\\begin{asmblock}")
         lines.append("\\begin{lstlisting}[style=asm]")
-        lines.append(code)
+        lines.append("lw   $t0, 0($s0)")
+        lines.append("add  $t1, $t0, $s1   # depends on t0")
         lines.append("\\end{lstlisting}")
         lines.append("\\end{asmblock}")
-        lines.append("\\end{exbox}")
+        lines.append(
+            f"התלות על \\code{{\\$t0}} היא עלות ב־{en(keyword)}, לא ״באג קוד״."
+        )
         lines.append("")
-    # Occasional tikz (every 4th)
-    if ch_i % 4 == 0:
+    if i % 6 == 0:
         lines.append("\\begin{tikzpic}")
-        lines.append("\\begin{tikzpicture}[font=\\small,node distance=7mm,>={Latex[length=2mm]},")
-        lines.append("  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]")
+        lines.append("\\begin{tikzpicture}[font=\\small,node distance=8mm,>={Latex[length=2mm]},")
+        lines.append("  box/.style={draw,thick,rounded corners,align=center,minimum width=2.4cm,minimum height=1.0cm,fill=cBlueBg}]")
         lines.append(f"  \\node[box] (a) {{{en('In')}}};")
-        lines.append(f"  \\node[box,right=of a] (b) {{{en(keyword[:6] or 'Core')}}};")
+        lines.append(f"  \\node[box,right=of a] (b) {{{en(keyword[:8])}}};")
         lines.append(f"  \\node[box,right=of b,fill=cGreenBg] (c) {{{en('Out')}}};")
         lines.append("  \\draw[->,thick] (a) -- (b);")
         lines.append("  \\draw[->,thick] (b) -- (c);")
         lines.append("\\end{tikzpicture}")
         lines.append("\\end{tikzpic}")
-        lines.append(f"\\begin{{center}}\\small איור — זרימה סכמטית ל־{en(keyword)}\\end{{center}}")
+        lines.append(f"\\begin{{center}}\\small איור — זרימה ל־{en(keyword)}\\end{{center}}")
         lines.append("")
-    # Warn / note
-    if ch_i % 2 == 1:
-        lines.append("\\begin{warnbox}[frametitle={מלכודת נפוצה}]")
-        lines.append(
-            f"לשפר רכיב מקומי בלי לבדוק את~\\eqref{{eq:{key}}} יוצר אופטימיזציה מדומה. "
-            f"ודא שהשיפור ב־{en(keyword)} שורד גם בעומס אמיתי, לא רק במיקרו־בנצ׳מרק."
-        )
-        lines.append("\\end{warnbox}")
-        lines.append("")
-    else:
-        lines.append("\\begin{notebox}[frametitle={הערה}]")
-        lines.append(
-            f"הסימון אחיד לאורך הפרק: משתנים לטיניים ב־{en('math')}, מזהים ב־\\code{{code}}, "
-            f"והסבר בעברית מחוץ לנוסחה."
-        )
-        lines.append("\\end{notebox}")
-        lines.append("")
-    # Closing intuition + list
-    lines.append("סיכום תפעולי:")
+    lines.append("סדר עבודה:")
     lines.append("\\begin{enumerate}")
-    lines.append(f"\\item[(\\textbf{{א}})] זהה את המדד — כאן {en(keyword)} דרך~\\eqref{{eq:{key}}}.")
-    lines.append(f"\\item[(\\textbf{{ב}})] פרק לגורמים מדידים וודא יחידות.")
-    lines.append(f"\\item[(\\textbf{{ג}})] שפר גורם אחד בכל פעם ומדוד שוב.")
+    lines.append(f"\\item[(\\textbf{{א}})] מדוד את {en(keyword)} לפי~\\eqref{{eq:{key}}}.")
+    lines.append("\\item[(\\textbf{ב})] זהה גורם שולט אחד.")
+    lines.append("\\item[(\\textbf{ג})] שנה אותו בלבד, ומדוד שוב.")
     lines.append("\\end{enumerate}")
     lines.append("")
     return "\n".join(lines)
 
 
-def exercise_block(i, key, keyword, eq_ref):
+def bridge(part_title, keys):
+    # prose-only connective chapter, 0–1 box
+    refs = ", ".join(rf"\\eqref{{eq:{k}}}" for k in keys[:4])
+    return f"""
+\\chapter{{חיבור — {part_title}}}
+\\label{{ch:bridge-{keys[0]}}}
+
+הפרקים בחלק ״{part_title}״ חולקים משמעת אחת: מדד, נוסחה, מדידה.
+הנוסחאות {refs} אינן אוסף עובדות — הן חוזה מדידה.
+
+\\begin{{keybox}}[frametitle={{חוזה החלק}}]
+לכל נוסחה ממוספרת בחלק כתוב ניסוי אחד שמאמת אותה. בלי ניסוי — היא דקורציה.
+\\end{{keybox}}
+
+כששני מדדים מתנגשים, בוחרים לפי מטרת המערכת (השהיה מול מעבר־נתונים, דיוק מול עלות),
+לא לפי הנוסחה היפה יותר.
+"""
+
+
+def exercise(i, key, keyword):
+    # exbox (question) + keybox (solution) — allowed in exercises part
     return f"""
 \\begin{{exbox}}[frametitle={{תרגיל {i} — {en(keyword)}}}]
-\\textbf{{(א)}} חשב את ערך המדד לפי~\\eqref{{eq:{eq_ref}}} עבור המספרים שבטבלה למטה.\\\\[4pt]
-\\textbf{{(ב)}} שנה פרמטר אחד ב־$10\\%$ והסבר את כיוון השינוי.\\\\[4pt]
-\\textbf{{(ג)}} ציין מתי הקירוב נשבר.
+\\textbf{{(א)}} חשב לפי~\\eqref{{eq:{key}}} עם $a=1$, $b=0.05$, $c=80$.\\\\[3pt]
+\\textbf{{(ב)}} הורד את $b$ ל־$0.02$ והעלה את $a$ ל־$2$. האם כדאי?\\\\[3pt]
+\\textbf{{(ג)}} מתי הקירוב נשבר?
 \\end{{exbox}}
 
-\\begin{{tablebox}}\\centering\\small
-\\begin{{tabular}}{{@{{}}lll@{{}}}}
-\\toprule
-\\textbf{{פרמטר}} & \\textbf{{ערך א}} & \\textbf{{ערך ב}}\\\\
-\\midrule
-$a$ & $1.0$ & $1.2$\\\\
-$b$ & $0.05$ & $0.02$\\\\
-$c$ & $80$ & $100$\\\\
-\\bottomrule
-\\end{{tabular}}
-\\tabcap{{נתונים לתרגיל {i}.}}
-\\end{{tablebox}}
-
 \\begin{{keybox}}[frametitle={{פתרון {i}}},nobreak=true]
-\\textbf{{פתרון (א).}}\\\\
-מצבים לתוך~\\eqref{{eq:{eq_ref}}} ומקבלים ערך מספרי יחיד.\\\\[3pt]
-\\textbf{{פתרון (ב).}}\\\\
-נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\\\[3pt]
-\\textbf{{פתרון (ג).}}\\\\
-הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\\\[3pt]
-\\textbf{{לקח.}} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\\textbf{{פתרון (א).}} מצבים ל~\\eqref{{eq:{key}}} ומקבלים ערך יחיד.\\\\[2pt]
+\\textbf{{פתרון (ב).}} משווים שני ערכים של המדד — ההחלטה לפי המספר, לא לפי אינטואיציה.\\\\[2pt]
+\\textbf{{פתרון (ג).}} כשגורמים שנחשבו בלתי־תלויים מתואמים.\\\\[2pt]
+\\textbf{{לקח.}} מדוד דרך הנוסחה.
 \\end{{keybox}}
 """
 
 
-def quantum_circuit_chapter():
-    return r"""
-\chapter{מעגל בל כתבנית עבודה}
+def main():
+    chunks = []
+    chunks.append(r"""% anthology.tex — content-style disciplined (~1 box/ch, prose spine)
+% Generated by gen_anthology.py — follows references/content-style.md
+\input{preamble.tex}
+\usepackage{graphicx}
+
+\begin{document}
+\begin{titlepage}
+\centering\vspace*{3.8cm}
+{\Huge\bfseries לקט מערכות וחישוב\par}
+\vspace{1.0cm}
+{\Large ארכיטקטורה / מערכות / אלגוריתמים / למידה / קוונטים / אבטחה\par}
+\vspace{0.8cm}
+{\large ראווה ל־\en{hebrew-lualatex-pdf} — לפי \texttt{content-style.md}\par}
+\vspace{0.4cm}
+{\large יעד: פרוזה + משוואות ממוספרות כשדרה; $\sim$1--2 קופסאות לפרק\par}
+\vfill
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+""")
+
+    all_keys = []
+    global_i = 0
+    for part_title, chapters in PARTS:
+        chunks.append(f"\\part{{{part_title}}}\n")
+        part_keys = []
+        for title, key, keyword, eq_tex, box_kind, box_body in chapters:
+            chunks.append(chapter(global_i, title, key, keyword, eq_tex, box_kind, box_body))
+            part_keys.append(key)
+            all_keys.append((key, keyword))
+            global_i += 1
+        chunks.append(bridge(part_title, part_keys))
+
+    # One quantum circuit showcase chapter (thm box + prose proof — like skill exemplar)
+    chunks.append(r"""
+\part{תבניות עבודה}
+\chapter{מעגל בל ואי־שכפול}
 \label{ch:bell-template}
 
-מצב בל הוא תבנית העבודה לשזירה דו־קיוביטית:
+מצב בל הוא תבנית העבודה לשזירה דו־קיוביטית.
+
 \begin{equation}
 \label{eq:bell-template}
 \ket{\Phi^+} = \tfrac1{\sqrt2}(\ket{00}+\ket{11})
@@ -271,74 +360,21 @@ def quantum_circuit_chapter():
 \begin{center}\small איור — הכנת $\ket{\Phi^+}$ ומדידה\end{center}
 
 \begin{thmbox}[frametitle={משפט — אי־שכפול}]
-לא קיים $U$ אוניטרי כך ש־$U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi$ לכל $\ket\psi$.
+לא קיים אופרטור אוניטרי $U$ כך ש־$U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi$ לכל $\ket\psi$.
 \end{thmbox}
 
 \noindent\textbf{הוכחה (בקצרה).}
- נניח שקיים. אז $\braket{\psi}{\phi}=\braket{\psi}{\phi}^2$,
-ולכן $\braket{\psi}{\phi}\in\{0,1\}$ — סתירה לליניאריות. $\qquad\blacksquare$
-"""
+ נניח שקיים $U$ לשני מצבים. אז $\braket{\psi}{\phi}=\braket{\psi}{\phi}^2$,
+ולכן $\braket{\psi}{\phi}\in\{0,1\}$ — סתירה לליניאריות על מצב שרירותי. $\qquad\blacksquare$
 
-
-def main():
-    chunks = []
-    chunks.append(r"""% anthology.tex — dense ~100-page Hebrew academic showcase (generated)
-% Build: bash ../scripts/build.sh anthology.tex
-\input{preamble.tex}
-\usepackage{graphicx}
-
-\title{לקט מערכות וחישוב}
-\author{אנציקלופדיית לימוד צפופה — ראווה ל־hebrew-lualatex-pdf}
-\date{}
-
-\begin{document}
-\begin{titlepage}
-\centering\vspace*{3.8cm}
-{\Huge\bfseries לקט מערכות וחישוב\par}
-\vspace{1.0cm}
-{\Large ארכיטקטורה $\cdot$ מערכות $\cdot$ אלגוריתמים $\cdot$ למידה $\cdot$ קוונטים $\cdot$ אבטחה\par}
-\vspace{0.8cm}
-{\large מסמך ראווה צפוף לצינור \en{hebrew-lualatex-pdf}\par}
-\vspace{0.5cm}
-{\large מטרה: $\sim$100 עמודים עם משוואות, קופסאות, טבלאות, קוד ותרגילים\par}
-\vfill
-\end{titlepage}
-
-\tableofcontents
-\clearpage
-""")
-    # Fix middle-dot in title page - charset may reject · 
-    # I'll fix below by regenerating without ·
-
-    eq_keys = []
-    global_ch = 0
-    for part_title, chapters in PARTS:
-        chunks.append(f"\\part{{{part_title}}}\n")
-        for i, (title, key, keyword, eq_tex) in enumerate(chapters):
-            global_ch += 1
-            chunks.append(chapter(0, i, title, key, keyword, eq_tex, global_ch))
-            eq_keys.append(key)
-        # Extra connective chapter per part
-        chunks.append(f"""
-\\chapter{{חיבור הפרק — {part_title}}}
-\\label{{ch:bridge-{len(eq_keys)}}}
-
-הפרקים הקודמים בחלק ״{part_title}״ חולקים מבנה זהה: מדד $\\leftarrow$ נוסחה $\\leftarrow$ מדידה.
-הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
-\\begin{{keybox}}[frametitle={{התמונה הגדולה של החלק}}]
-חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
-אם אין ניסוי — הנוסחה עדיין דקורטיבית.
-\\end{{keybox}}
+הלקח התפעולי: שזירה לא ניתנת להעתקה מקומית; כל פרוטוקול שמניח עותק שקט של מצב שזור שבור מראש.
 """)
 
-    chunks.append(quantum_circuit_chapter())
-
-    # pgfplots chapter
     chunks.append(r"""
-\chapter{עקומות ביצוע — קריאה נכונה}
+\chapter{עקומות ביצוע}
 \label{ch:curves}
 
-גרף אינו קישוט: הוא מדידה. הציר האופקי הוא פרמטר תכנון; האנכי הוא המדד.
+גרף הוא מדידה: ציר $x$ פרמטר תכנון, ציר $y$ המדד.
 
 \begin{tikzpic}
 \begin{tikzpicture}
@@ -358,28 +394,15 @@ def main():
 \end{tikzpic}
 \begin{center}\small איור — ירידת שגיאה עם גודל המשאב\end{center}
 
-\begin{notebox}[frametitle={איך קוראים את הגרף}]
-חפש נקודת שבת: מעבר אליה העלות עולה מהר והתועלת יורדת.
-זו נקודת התכנון, לא קצה העקומה.
-\end{notebox}
+נקודת התכנון היא שם שהתועלת השולית יורדת מתחת לעלות השולית — לא קצה העקומה.
 """)
 
-    # Exercises part
-    chunks.append("\\part{תרגילים פתורים}\n")
-    chunks.append("\\chapter{תרגילים מסכמים}\n\\label{ch:ex}\n")
-    # pick subset of keys for exercises
-    for i, key in enumerate(eq_keys[::3][:24], start=1):
-        # find keyword from PARTS
-        kw = key
-        for _, chs in PARTS:
-            for title, k, keyword, _ in chs:
-                if k == key:
-                    kw = keyword
-                    break
-        chunks.append(exercise_block(i, key, kw, key))
+    chunks.append("\\part{תרגילים פתורים}\n\\chapter{תרגילים מסכמים}\n\\label{ch:ex}\n")
+    for i, (key, kw) in enumerate(all_keys[::3][:20], start=1):
+        chunks.append(exercise(i, key, kw))
 
     chunks.append(r"""
-\chapter{נספח — זהויות וקיצורים}
+\chapter{נספח — זהויות}
 \label{ch:appendix}
 
 \[
@@ -389,10 +412,6 @@ T_{\mathrm{avg}}=T_{\mathrm{hit}}+r_{\mathrm{miss}}T_{\mathrm{miss}}
 \[
 HXH=Z,\qquad HZH=X,\qquad H^2=I
 \]
-\[
-\ket{\Phi^\pm}=\tfrac1{\sqrt2}(\ket{00}\pm\ket{11}),\qquad
-\ket{\Psi^\pm}=\tfrac1{\sqrt2}(\ket{01}\pm\ket{10})
-\]
 
 \begin{tablebox}\centering\small
 \begin{tabular}{@{}ll@{}}
@@ -400,37 +419,30 @@ HXH=Z,\qquad HZH=X,\qquad H^2=I
 \textbf{קיצור} & \textbf{משמעות}\\
 \midrule
 \en{CPI} & מחזורים להוראה\\
-\en{AMAT} & זמן גישה ממוצע לזיכרון\\
+\en{AMAT} & זמן גישה ממוצע\\
 \en{IPC} & הוראות למחזור\\
-\en{TLB} & מטמון תרגום כתובות\\
+\en{TLB} & מטמון תרגום\\
 \en{VQE} & אומדן ערך עצמי וריאציוני\\
 \bottomrule
 \end{tabular}
 \tabcap{קיצורים מרכזיים.}
 \end{tablebox}
 
-\noindent סוף הלקט. המסמך נועד לתרגול הצינור בעומס אמיתי:
-מאות משוואות־עזר, עשרות קופסאות, טבלאות, קטעי קוד ותרגילים — בלי tofu ובלי היפוכי כיוון.
-
 \end{document}
 """)
 
     text = "\n".join(chunks)
-    # Charset hygiene: remove middle dots and other forbidden chars
-    text = text.replace("·", "---")  # will fix -- to emdash issues; use ASCII hyphen phrase instead
-    text = text.replace("---", " / ")
-    text = text.replace("בנצ׳מרק", "benchmark")  # geresh in middle might be ok; avoid weird chars
-    # Fix title page line that had cdot in latex - use text
-    text = text.replace(
-        r"ארכיטקטורה $\cdot$ מערכות $\cdot$ אלגוריתמים $\cdot$ למידה $\cdot$ קוונטים $\cdot$ אבטחה",
-        r"ארכיטקטורה / מערכות / אלגוריתמים / למידה / קוונטים / אבטחה",
-    )
-    # Fix broken flow math in coherency if any
-    text = text.replace(r"\out{s}", r"\mid s")  # fix invalid macro in flow chapter
+    # Fix double-escaped backslashes from PARTS raw strings that used \\ for latex
+    # PARTS eq_tex used r"..." with \\mathrm - in chapter we need single \
+    # Actually in PARTS I used r"T_{\\mathrm{avg}}" which becomes T_{\mathrm{avg}} in the file - good.
+    # Wait - in the first few I used single \ in r-strings like r"\mathrm{CPI}" - good
+    # Later ones have \\mathrm which writes \mathrm - good
+    # But some have \\cdot which is \cdot - good
+    # Problem: r"P_{\mathrm{mispredict}}\\cdot T" -> P_{\mathrm{mispredict}}\cdot T - good
 
+    # Charset: avoid middle dots etc already
     OUT.write_text(text, encoding="utf-8")
-    nch = sum(1 for p, chs in PARTS for _ in chs)
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes), topic chapters={nch}, eq_keys={len(eq_keys)}")
+    print(f"wrote {OUT} ({OUT.stat().st_size} bytes), chapters≈{global_i}")
 
 
 if __name__ == "__main__":
