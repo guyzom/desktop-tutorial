@@ -469,6 +469,7 @@
       const card = document.createElement("button");
       card.type = "button";
       card.className = "turtle-card";
+      card.dataset.id = t.id;
       card.setAttribute("aria-label", t.name);
       card.innerHTML =
         '<div class="badge"><img src="' + t.img + '" alt="" /></div>' +
@@ -504,9 +505,9 @@
     dom.mapBoard.innerHTML = "";
     // Layout: 12 nodes across a curvy path — coords in % (relative to map-board)
     const nodePositions = [
-      { x: 10, y: 78 }, { x: 24, y: 60 }, { x: 38, y: 80 }, { x: 52, y: 58 },
-      { x: 15, y: 40 }, { x: 30, y: 24 }, { x: 46, y: 40 }, { x: 62, y: 22 },
-      { x: 78, y: 34 }, { x: 88, y: 56 }, { x: 74, y: 74 }, { x: 60, y: 88 },
+      { x: 12, y: 78 }, { x: 28, y: 62 }, { x: 44, y: 78 }, { x: 58, y: 58 },
+      { x: 18, y: 42 }, { x: 34, y: 26 }, { x: 50, y: 40 }, { x: 66, y: 24 },
+      { x: 78, y: 38 }, { x: 86, y: 56 }, { x: 74, y: 72 }, { x: 58, y: 86 },
     ];
 
     // SVG dashed path connecting nodes
