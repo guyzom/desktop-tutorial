@@ -1,7 +1,0 @@
-% KNOWN-BAD: Hebrew inside MathJax \text within equations. MathJax renders the
-% Hebrew reversed + letter-spaced (PHASE0 spike 1). The render-gate is BLIND to
-% math (vector paths, no text layer), so this must be caught at the SOURCE layer:
-% check_bidi.mjs must fire hebrew-in-math-text on every line here.
-\[ E = \underbrace{mc^2}_{\text{אנרגיית מנוחה}} + K \]
-\[ X \sim \text{נורמלי}(\mu,\sigma^2) \]
-\( \operatorname{Tr}(\rho) = 1 \quad \text{עקבה} \)

@@ -1,7 +1,0 @@
-{
-  "_comment": "Bidi checker parameters (data for scripts/check_bidi.mjs and scripts/check_dom.mjs).",
-  "textMacros": ["text", "mathrm", "textrm", "mbox", "mathbf", "mathit"],
-  "rightwardArrows": "→⇒↦⟶⟹⇉⇨➔➜➝⟼",
-  "gershayim": "״",
-  "geresh": "׳"
-}
