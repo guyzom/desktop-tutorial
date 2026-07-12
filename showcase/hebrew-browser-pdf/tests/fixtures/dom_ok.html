@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/base.css">
+<style>@page{size:A4;margin:18mm}</style></head>
+<body>
+<!-- KNOWN-GOOD: cases the requirements extraction PREDICTED would transfer but
+     which CSS isolation handles correctly in Chromium (verified by rendering).
+     The checker must stay SILENT — no false positives. -->
+<p>מקורות: <span class="en">Griffiths</span>, <span class="en">Thomson</span>, <span class="en">PDG</span>.</p>
+<p>המדד CPI (Cycles Per Instruction) חשוב.</p>
+<p>שלב א ← שלב ב ← שלב ג.</p>  <!-- correct leftward arrows in RTL: must NOT fire -->
+</body></html>

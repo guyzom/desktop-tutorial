@@ -1,0 +1,53 @@
+/* Document-level layout for src/document.mjs (paged.js). Complements base.css. */
+
+@page {
+  size: A4; margin: 22mm 18mm 20mm;
+  @bottom-center { content: counter(page); font-family: 'Frank Ruhl Libre', serif; font-size: 10pt; direction: ltr; }
+  @top-right { content: string(chaptitle); font-family: 'Frank Ruhl Libre', serif; font-size: 9pt; color: #666; }
+  @footnote { border-top: 0.5pt solid #999; margin-top: 6pt; padding-top: 3pt; }
+}
+/* No header/footer on the title page and part dividers. */
+@page :first { @top-right { content: none; } @bottom-center { content: none; } }
+@page blank { @top-right { content: none; } }
+
+/* Title page */
+.titlepage { break-after: page; text-align: center; padding-top: 55mm; }
+.titlepage .tp-title { font-size: 30pt; font-weight: 700; line-height: 1.2; }
+.titlepage .tp-sub { font-size: 14pt; color: #444; margin-top: 12px; }
+
+/* TOC */
+.toc { break-after: page; }
+.toc h2 { font-size: 17pt; border-bottom: 1px solid var(--ink); padding-bottom: 3px; }
+.toc ul { list-style: none; padding: 0; }
+.toc li { margin: 5px 0; display: flex; align-items: baseline; }
+.toc .name a { text-decoration: none; color: #111; }
+.toc .lead { flex: 1 1 auto; border-bottom: 1px dotted #bbb; margin: 0 8px; transform: translateY(-3px); }
+.toc .pgcell { direction: ltr; unicode-bidi: isolate; flex: 0 0 auto; }
+.toc .pgcell a { text-decoration: none; color: #111; }
+.toc .pgcell a::after { content: target-counter(attr(href), page); }
+
+/* Part divider — its own page, blank running header */
+.part-divider { break-before: page; break-after: page; page: blank; text-align: center; padding-top: 80mm; }
+.part-divider .part-title { font-size: 24pt; font-weight: 700; color: var(--ink); }
+
+/* Chapter heading — new page, feeds the running header via string-set */
+h2.chapter {
+  string-set: chaptitle content(text);
+  break-before: page; font-size: 19pt; margin: 0 0 12px;
+  border-bottom: 2px solid var(--ink); padding-bottom: 4px;
+}
+
+/* Auto-numbered display equation: math centered, number pinned to the left.
+   .eq-plain (Doc.display()) reuses the same block/centering with no .eqno
+   child — no extra rule needed, the absent number just leaves no mark. */
+.eq { position: relative; margin: 0.7em 0; }
+.eq .eqbody { display: block; text-align: center; }
+.eq .eqno { position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            direction: ltr; unicode-bidi: isolate; font-size: 0.95em; color: var(--ink); }
+
+/* Cross-references */
+a.xref, .xref { text-decoration: none; color: var(--ink); direction: ltr; unicode-bidi: isolate; }
+
+/* Footnotes (paged.js page-bottom float) */
+.fn-def { float: footnote; font-size: 0.82em; }
+.fn-mark { color: var(--ink); }

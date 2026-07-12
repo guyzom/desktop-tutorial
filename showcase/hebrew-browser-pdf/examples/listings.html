@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../assets/css/base.css">
+<style> @page { size: A4; margin: 18mm; } h1{font-size:17pt} h2{font-size:12pt;color:#555;margin:14px 0 4px} </style></head>
+<body><h1>רשימות קוד</h1>
+<p>קוד תמיד <span class="en">LTR</span> מבודד — סימני פיסוק (<span class="code">$ ( ) [ ] ; :</span>) לא מתהפכים. הערות באנגלית, לעולם לא עברית בתוך רצף קוד.</p>
+
+<h2>1 · רשימה עם מספרי שורות</h2>
+<div class="listing numbered"><pre><span class="ln">strcpy: <span class='kw'>addi</span> $sp, $sp, -4      <span class='cm'># push frame</span></span>
+<span class="ln">        <span class='kw'>sw</span>   $s0, 0($sp)       <span class='cm'># save $s0</span></span>
+<span class="ln">        <span class='kw'>add</span>  $s0, $zero, $zero <span class='cm'># i = 0</span></span>
+<span class="ln">loop:   <span class='kw'>add</span>  $t1, $s0, $a1     <span class='cm'># &amp;y[i]</span></span>
+<span class="ln">        <span class='kw'>lb</span>   $t2, 0($t1)       <span class='cm'># $t2 = y[i]</span></span>
+<span class="ln">        <span class='kw'>add</span>  $t3, $s0, $a0     <span class='cm'># &amp;x[i]</span></span>
+<span class="ln">        <span class='kw'>sb</span>   $t2, 0($t3)       <span class='cm'># x[i] = y[i]</span></span>
+<span class="ln">        <span class='kw'>beq</span>  $t2, $zero, done  <span class='cm'># if y[i]==0 stop</span></span>
+<span class="ln">        <span class='kw'>addi</span> $s0, $s0, 1       <span class='cm'># i++</span></span>
+<span class="ln">        <span class='kw'>j</span>    loop</span>
+<span class="ln">done:   <span class='kw'>lw</span>   $s0, 0($sp)</span></pre></div>
+
+<h2>2 · רשימה בתוך קופסת תרגיל (מוכלת במסגרת)</h2>
+<div class="box box-ex box-w5"><div class="box-title">תרגיל — <span class="code">strcpy</span> ב־MIPS</div><div class="box-body"><div>ממשו העתקת מחרוזת. הפתרון בהמשך; שימו לב לשמירת <span class="code">$s0</span> במחסנית.</div><div class="listing"><pre>strcpy: <span class='kw'>addi</span> $sp, $sp, -4      <span class='cm'># push frame</span>
+        <span class='kw'>sw</span>   $s0, 0($sp)       <span class='cm'># save $s0</span>
+        <span class='kw'>add</span>  $s0, $zero, $zero <span class='cm'># i = 0</span>
+loop:   <span class='kw'>add</span>  $t1, $s0, $a1     <span class='cm'># &amp;y[i]</span>
+        <span class='kw'>lb</span>   $t2, 0($t1)       <span class='cm'># $t2 = y[i]</span>
+        <span class='kw'>add</span>  $t3, $s0, $a0     <span class='cm'># &amp;x[i]</span>
+        <span class='kw'>sb</span>   $t2, 0($t3)       <span class='cm'># x[i] = y[i]</span>
+        <span class='kw'>beq</span>  $t2, $zero, done  <span class='cm'># if y[i]==0 stop</span>
+        <span class='kw'>addi</span> $s0, $s0, 1       <span class='cm'># i++</span>
+        <span class='kw'>j</span>    loop
+done:   <span class='kw'>lw</span>   $s0, 0($sp)</pre></div></div></div>
+
+<h2>3 · קוד גבוה יותר (<span class="en">Python</span>)</h2>
+<div class="listing numbered"><pre><span class="ln"><span class='kw'>def</span> teleport(state):</span>
+<span class="ln">    <span class='cm'># share a Bell pair, then measure</span></span>
+<span class="ln">    a, b = bell_pair()</span>
+<span class="ln">    m1, m2 = measure_bell(state, a)</span>
+<span class="ln">    <span class='kw'>return</span> correct(b, m1, m2)  <span class='cm'># apply X/Z</span></span></pre></div>
+</body></html>

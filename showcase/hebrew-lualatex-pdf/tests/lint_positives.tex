@@ -1,0 +1,16 @@
+% lint_positives.tex — one instance of each bug class. EXPECTED flags are
+% listed in expected_flags.txt; the harness fails on any missing flag.
+טקסט עם \SI{5}{\meter} בלי siunitx טעון.
+ציטוט עם \enquote{מרכאות} בלי csquotes.
+מקף כפול צמוד לעברית -- ככה, וגם משולש---צמוד.
+תווית עם חזקה בתוך טקסט: $\text{ערך^2}$ שבור.
+שלב ראשון $\to$ שלב שני בפרוזה עברית — חץ הפוך.
+רשימה לטינית שבורה: \en{BaBar}, \en{Belle} כאיים נפרדים.
+\begin{tikzpicture}
+\node at (0,0) {\h{מעבד Datapath}};
+\end{tikzpicture}
+סוגריים מחוץ לאי לטיני: \begin{equation}\alpha\quad\text{(\en{weak})}\end{equation}
+סוגריים בתוך \text מולטי-ליין: \begin{equation}\alpha\quad\text{(\en{weak})%
+}\end{equation}
+\providecommand{\ni}{n_{\mathrm i}}
+תיוג עברי בין איים: \begin{align}I &\propto V && \text{\en{(}תעלה רחבה\en{)}}\end{align}
