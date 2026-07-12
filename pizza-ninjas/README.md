@@ -8,11 +8,12 @@
 
 פתחו ב־Safari באייפד → **שתף → הוסף למסך הבית** — והמשחק נפתח כמו אפליקציה.
 
+**גיבוי (אם github.io עדיין לא עלה):**  
+https://cdn.jsdelivr.net/gh/guyzom/desktop-tutorial@main/pizza-ninjas/index.html
+
 ---
 
-## ⚠️ הפעלה חד-פעמית (אם הקישור לא עובד / Actions נכשל)
-
-השגיאה `Get Pages site failed` / `Not Found` אומרת ש-GitHub Pages **עדיין לא הופעל** בריפו.
+## ⚠️ אם הקישור לא עובד
 
 ### שלב 1 — הפעלת Pages (פעם אחת בלבד)
 
