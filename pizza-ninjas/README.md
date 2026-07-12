@@ -4,11 +4,33 @@
 
 ## 🎮 לשחק עכשיו (אייפד / טלפון / מחשב)
 
-**קישור ישיר:** https://guyzom.github.io/desktop-tutorial/
+**קישור:** https://guyzom.github.io/desktop-tutorial/
 
 פתחו ב־Safari באייפד → **שתף → הוסף למסך הבית** — והמשחק נפתח כמו אפליקציה.
 
-> אם הקישור עדיין לא עובד: ב-GitHub → **Settings → Pages** → Source: **GitHub Actions**. אחרי merge ל־`main`, הפריסה לוקחת כדקה.
+---
+
+## ⚠️ הפעלה חד-פעמית (אם הקישור לא עובד / Actions נכשל)
+
+השגיאה `Get Pages site failed` / `Not Found` אומרת ש-GitHub Pages **עדיין לא הופעל** בריפו.
+
+### שלב 1 — הפעלת Pages (פעם אחת בלבד)
+
+1. פתח: https://github.com/guyzom/desktop-tutorial/settings/pages
+2. תחת **Build and deployment** → **Source**
+3. בחר: **GitHub Actions** (לא "Deploy from a branch")
+
+### שלב 2 — הרצה מחדש
+
+1. פתח: https://github.com/guyzom/desktop-tutorial/actions
+2. בחר **Deploy pizza game to GitHub Pages**
+3. **Run workflow** → Run workflow (או Re-run על הריצה שנכשלה)
+
+### שלב 3 — בדיקה
+
+אחרי ~דקה, הקישור אמור לעבוד: https://guyzom.github.io/desktop-tutorial/
+
+---
 
 ## איך משחקים
 
