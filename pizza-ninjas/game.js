@@ -331,7 +331,8 @@
     const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
     playerMesh = M.createTurtle3D(t.color);
     playerMesh.scale.setScalar(1.15);
-    playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
+    // Mesh faces -Z by default (eyes on -Z) = into the tunnel, away from camera
+    playerMesh.rotation.y = 0;
     playerMesh.visible = true;
     scene.add(playerMesh);
     return playerMesh;
