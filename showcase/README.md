@@ -8,6 +8,27 @@
 | Source | `hebrew-browser-pdf/docs/insanity.mjs` | `hebrew-lualatex-pdf/docs/insanity.tex` |
 | PDF | `output/insanity.pdf` (~19 pp) | `output/insanity-lualatex.pdf` (~25 pp) |
 
+Both cover: pipeline/hazards, cache/AMAT, qubits, Bell/teleport, hybrid control, worked exercises.
+
+### Build — browser
+
+```bash
+cd hebrew-browser-pdf && npm install
+node docs/insanity.mjs
+node src/render.mjs docs/insanity.html ../../output/insanity.pdf
+python3 scripts/normalize_pdf.py ../../output/insanity.pdf
+```
+
+### Build — LuaLaTeX (short demo)
+
+```bash
+cd hebrew-lualatex-pdf
+bash scripts/setup_fonts.sh
+cp assets/preamble.tex docs/
+cd docs && bash ../scripts/build.sh insanity.tex
+cp insanity.pdf ../../output/insanity-lualatex.pdf
+```
+
 ## Long anthology (~163 pp) — LuaLaTeX
 
 | | |
@@ -15,7 +36,7 @@
 | Generator | `hebrew-lualatex-pdf/docs/gen_anthology.py` |
 | Source | `hebrew-lualatex-pdf/docs/anthology.tex` |
 | PDF | `output/anthology-100pp.pdf` |
-| Contents | 8 parts, 61+ topic chapters, equations, boxes, tables, asm listings, TikZ, quantikz, plots, 24 exercises |
+| Contents | 8 parts, 61+ topic chapters, equations, boxes, tables, asm listings, TikZ, quantikz, plots, exercises |
 | Gates | charset+bidi clean; 0 missing glyphs; 0 overfull; render-gate green |
 
 ```bash
