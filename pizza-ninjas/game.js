@@ -1,11 +1,21 @@
 (() => {
   "use strict";
 
+  const ASSETS = {
+    leo: "assets/leo.png",
+    raph: "assets/raph.png",
+    don: "assets/don.png",
+    mikey: "assets/mikey.png",
+    pizza: "assets/pizza.png",
+    gold: "assets/pizza-gold.png",
+    broccoli: "assets/broccoli.png",
+  };
+
   const TURTLES = [
-    { id: "leo", name: "ליאו", mask: "כחול · מנהיג", emoji: "🐢", cheer: "ליאו תופס!" },
-    { id: "raph", name: "ראף", mask: "אדום · חזק", emoji: "🐢", cheer: "ראף בום!" },
-    { id: "don", name: "דוני", mask: "סגול · גאון", emoji: "🐢", cheer: "דוני חכם!" },
-    { id: "mikey", name: "מיקי", mask: "כתום · כיף", emoji: "🐢", cheer: "מיקי קואבונגה!" },
+    { id: "leo", name: "ליאו", mask: "כחול · מנהיג", img: ASSETS.leo, cheer: "ליאו תופס!" },
+    { id: "raph", name: "ראף", mask: "אדום · חזק", img: ASSETS.raph, cheer: "ראף בום!" },
+    { id: "don", name: "דוני", mask: "סגול · גאון", img: ASSETS.don, cheer: "דוני חכם!" },
+    { id: "mikey", name: "מיקי", mask: "כתום · כיף", img: ASSETS.mikey, cheer: "מיקי קואבונגה!" },
   ];
 
   const CHEERS = [
@@ -17,6 +27,8 @@
     "מטורף!!!",
     "סופר פיצה!",
     "וואו!",
+    "נינג'ה!",
+    "בום פיצה!",
   ];
 
   const state = {
@@ -27,13 +39,14 @@
     paused: false,
     pizzas: [],
     spawnTimer: 0,
-    spawnEvery: 900,
+    spawnEvery: 850,
     lastTs: 0,
     playerX: 0.5,
     dragging: false,
     crazyUntil: 0,
-    nextMilestone: 10,
+    nextMilestone: 8,
     audioReady: false,
+    comboFlash: 0,
   };
 
   const els = {
@@ -44,8 +57,11 @@
     grid: document.getElementById("turtle-grid"),
     arena: document.getElementById("arena"),
     player: document.getElementById("player"),
+    playerImg: document.getElementById("player-img"),
     score: document.getElementById("score"),
     streak: document.getElementById("streak"),
+    comboPill: document.getElementById("combo-pill"),
+    comboLabel: document.getElementById("combo-label"),
     toast: document.getElementById("toast"),
     crazy: document.getElementById("crazy-banner"),
     catchFx: document.getElementById("catch-fx"),
@@ -101,15 +117,24 @@
   function sfxCatch(gold) {
     beep(gold ? 660 : 440, 0.08, "square", 0.09);
     setTimeout(() => beep(gold ? 880 : 660, 0.12, "triangle", 0.07), 60);
+    if (gold) setTimeout(() => beep(1046, 0.15, "sine", 0.06), 120);
   }
 
   function sfxMiss() {
     beep(180, 0.15, "sawtooth", 0.04);
+    setTimeout(() => beep(120, 0.2, "sawtooth", 0.03), 80);
   }
 
   function sfxCelebrate() {
-    [523, 659, 784, 1046].forEach((f, i) => {
-      setTimeout(() => beep(f, 0.18, "triangle", 0.09), i * 90);
+    [523, 659, 784, 1046, 1318].forEach((f, i) => {
+      setTimeout(() => beep(f, 0.18, "triangle", 0.09), i * 80);
+    });
+  }
+
+  function preloadAssets() {
+    Object.values(ASSETS).forEach((src) => {
+      const img = new Image();
+      img.src = src;
     });
   }
 
@@ -117,13 +142,15 @@
     const layer = els.floatLayer;
     if (!layer) return;
     layer.innerHTML = "";
-    for (let i = 0; i < 8; i++) {
-      const span = document.createElement("span");
-      span.textContent = i % 3 === 0 ? "🍕" : i % 2 === 0 ? "🧀" : "🍕";
-      span.style.left = `${8 + i * 12}%`;
-      span.style.animationDuration = `${7 + (i % 5)}s`;
-      span.style.animationDelay = `${i * 0.7}s`;
-      layer.appendChild(span);
+    for (let i = 0; i < 10; i++) {
+      const img = document.createElement("img");
+      img.className = "float-item";
+      img.src = i % 4 === 0 ? ASSETS.gold : ASSETS.pizza;
+      img.alt = "";
+      img.style.left = `${4 + i * 9.5}%`;
+      img.style.animationDuration = `${6 + (i % 5)}s`;
+      img.style.animationDelay = `${i * 0.55}s`;
+      layer.appendChild(img);
     }
   }
 
@@ -135,7 +162,7 @@
       btn.type = "button";
       btn.dataset.id = t.id;
       btn.innerHTML = `
-        <div class="avatar" aria-hidden="true">${t.emoji}</div>
+        <div class="avatar" aria-hidden="true"><img src="${t.img}" alt="" /></div>
         <div class="name">${t.name}</div>
         <div class="mask">${t.mask}</div>
       `;
@@ -153,16 +180,20 @@
     state.paused = false;
     state.pizzas = [];
     state.spawnTimer = 0;
-    state.spawnEvery = 900;
+    state.spawnEvery = 850;
     state.playerX = 0.5;
     state.crazyUntil = 0;
-    state.nextMilestone = 10;
+    state.nextMilestone = 8;
     state.lastTs = 0;
+    state.comboFlash = 0;
 
     els.arena.querySelectorAll(".pizza").forEach((p) => p.remove());
+    els.arena.classList.remove("crazy-mode", "shake");
     els.player.className = `turtle-player mask-${turtle.id}`;
-    els.player.textContent = turtle.emoji;
+    els.playerImg.src = turtle.img;
     els.player.style.left = "50%";
+    els.crazy.hidden = true;
+    els.comboPill.hidden = true;
     updateHud();
     showScreen("game");
     requestAnimationFrame(loop);
@@ -173,6 +204,12 @@
   function updateHud() {
     els.score.textContent = String(state.score);
     els.streak.textContent = String(state.streak);
+    if (state.streak >= 3) {
+      els.comboPill.hidden = false;
+      els.comboLabel.textContent = `×${state.streak}`;
+    } else {
+      els.comboPill.hidden = true;
+    }
   }
 
   function showToast(text) {
@@ -189,31 +226,52 @@
     sfxCelebrate();
     els.cele.hidden = false;
     els.celeText.textContent = text;
+    shakeArena();
     clearTimeout(celebrate._t);
     celebrate._t = setTimeout(() => {
       els.cele.hidden = true;
     }, 1200);
   }
 
+  function shakeArena() {
+    els.arena.classList.remove("shake");
+    void els.arena.offsetWidth;
+    els.arena.classList.add("shake");
+    clearTimeout(shakeArena._t);
+    shakeArena._t = setTimeout(() => els.arena.classList.remove("shake"), 450);
+  }
+
   function burst(x, y, gold) {
-    const icons = gold ? ["⭐", "✨", "🍕", "⭐"] : ["🍕", "🧀", "💥", "✨"];
-    for (let i = 0; i < 8; i++) {
-      const crumb = document.createElement("div");
-      crumb.className = "crumb";
-      crumb.textContent = icons[i % icons.length];
-      const angle = (Math.PI * 2 * i) / 8;
-      const dist = 40 + Math.random() * 60;
+    const wave = document.createElement("div");
+    wave.className = "shockwave";
+    wave.style.left = `${x}px`;
+    wave.style.top = `${y}px`;
+    els.catchFx.appendChild(wave);
+    setTimeout(() => wave.remove(), 500);
+
+    for (let i = 0; i < 12; i++) {
+      const crumb = document.createElement(i % 3 === 0 ? "div" : "img");
+      const angle = (Math.PI * 2 * i) / 12;
+      const dist = 50 + Math.random() * 80;
       crumb.style.left = `${x}px`;
       crumb.style.top = `${y}px`;
       crumb.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
       crumb.style.setProperty("--dy", `${Math.sin(angle) * dist}px`);
+
+      if (crumb.tagName === "IMG") {
+        crumb.className = "crumb";
+        crumb.src = gold ? ASSETS.gold : i % 2 === 0 ? ASSETS.pizza : ASSETS.gold;
+        crumb.alt = "";
+      } else {
+        crumb.className = "crumb emoji";
+        crumb.textContent = gold ? "⭐" : "✨";
+      }
       els.catchFx.appendChild(crumb);
-      setTimeout(() => crumb.remove(), 700);
+      setTimeout(() => crumb.remove(), 750);
     }
   }
 
   function spawnPizza() {
-    const rect = els.arena.getBoundingClientRect();
     const el = document.createElement("button");
     el.type = "button";
     el.className = "pizza";
@@ -221,35 +279,40 @@
 
     const roll = Math.random();
     let kind = "normal";
-    if (roll > 0.92) kind = "gold";
-    else if (roll < 0.06 && state.score > 5) kind = "bomb";
+    if (roll > 0.9) kind = "gold";
+    else if (roll < 0.07 && state.score > 4) kind = "bomb";
 
+    const img = document.createElement("img");
+    img.alt = "";
     if (kind === "gold") {
       el.classList.add("gold");
-      el.textContent = "🌟";
+      img.src = ASSETS.gold;
     } else if (kind === "bomb") {
       el.classList.add("bomb");
-      el.textContent = "🥦";
+      img.src = ASSETS.broccoli;
     } else {
-      el.textContent = Math.random() > 0.5 ? "🍕" : "🍕";
+      img.src = ASSETS.pizza;
     }
+    el.appendChild(img);
 
-    const x = 0.12 + Math.random() * 0.76;
+    const x = 0.1 + Math.random() * 0.8;
     el.style.left = `${x * 100}%`;
     els.arena.appendChild(el);
 
+    const crazy = performance.now() < state.crazyUntil;
     const speed =
-      (kind === "gold" ? 0.22 : 0.16) +
-      Math.min(state.score, 80) * 0.0015 +
-      (performance.now() < state.crazyUntil ? 0.12 : 0);
+      (kind === "gold" ? 0.24 : kind === "bomb" ? 0.14 : 0.17) +
+      Math.min(state.score, 100) * 0.0018 +
+      (crazy ? 0.14 : 0);
 
     const pizza = {
       el,
       x,
-      y: -0.08,
+      y: -0.1,
       speed,
       kind,
-      radius: 0.055,
+      radius: kind === "gold" ? 0.065 : 0.055,
+      wobble: Math.random() * Math.PI * 2,
       alive: true,
     };
 
@@ -276,11 +339,13 @@
       sfxMiss();
       showToast("ברוקולי? יאק!");
       burst(px, py, false);
+      shakeArena();
       updateHud();
       return;
     }
 
-    const points = pizza.kind === "gold" ? 5 : 1;
+    const comboBonus = state.streak >= 5 ? 1 : 0;
+    const points = (pizza.kind === "gold" ? 5 : 1) + comboBonus;
     state.score += points;
     state.streak += 1;
     sfxCatch(pizza.kind === "gold");
@@ -290,17 +355,17 @@
     void els.player.offsetWidth;
     els.player.classList.add("catching");
 
-    if (pizza.kind === "gold") showToast("פיצה זהב! +5");
+    if (pizza.kind === "gold") showToast(`פיצה זהב! +${points}`);
     else if (tapped) showToast(CHEERS[Math.floor(Math.random() * CHEERS.length)]);
-    else if (state.streak > 0 && state.streak % 5 === 0) showToast(`רצף ${state.streak}!`);
+    else if (state.streak > 0 && state.streak % 4 === 0) showToast(`רצף ${state.streak}!`);
 
     if (state.score >= state.nextMilestone) {
-      celebrate(state.nextMilestone >= 30 ? "מטורף לגמרי!!!" : "קואבונגה!!!");
-      state.nextMilestone += 10;
+      celebrate(state.nextMilestone >= 24 ? "מטורף לגמרי!!!" : "קואבונגה!!!");
+      state.nextMilestone += 8;
       startCrazyMode();
     }
 
-    if (state.streak === 8) {
+    if (state.streak === 6 || state.streak === 12) {
       startCrazyMode();
       showToast("סערת פיצות!");
     }
@@ -309,20 +374,23 @@
   }
 
   function startCrazyMode() {
-    state.crazyUntil = performance.now() + 4500;
-    state.spawnEvery = 280;
+    state.crazyUntil = performance.now() + 5200;
+    state.spawnEvery = 240;
     els.crazy.hidden = false;
+    els.arena.classList.add("crazy-mode");
+    shakeArena();
     clearTimeout(startCrazyMode._t);
     startCrazyMode._t = setTimeout(() => {
       els.crazy.hidden = true;
-      state.spawnEvery = Math.max(420, 900 - state.score * 4);
-    }, 4500);
+      els.arena.classList.remove("crazy-mode");
+      state.spawnEvery = Math.max(380, 850 - state.score * 4);
+    }, 5200);
   }
 
   function setPlayerFromClientX(clientX) {
     const rect = els.arena.getBoundingClientRect();
     const x = (clientX - rect.left) / rect.width;
-    state.playerX = Math.min(0.92, Math.max(0.08, x));
+    state.playerX = Math.min(0.9, Math.max(0.1, x));
     els.player.style.left = `${state.playerX * 100}%`;
   }
 
@@ -335,30 +403,35 @@
     if (!state.paused) {
       const crazy = ts < state.crazyUntil;
       state.spawnTimer += dt;
-      const every = crazy ? 220 : state.spawnEvery;
+      const every = crazy ? 180 : state.spawnEvery;
       if (state.spawnTimer >= every) {
         state.spawnTimer = 0;
         spawnPizza();
-        if (crazy && Math.random() > 0.4) spawnPizza();
+        if (crazy && Math.random() > 0.35) spawnPizza();
+        if (crazy && Math.random() > 0.7) spawnPizza();
       }
 
       const rect = els.arena.getBoundingClientRect();
-      const playerY = 1 - (90 + 18) / rect.height;
-      const catchR = 0.09;
+      const playerY = 1 - (110 + 28) / rect.height;
+      const catchR = 0.11;
 
       for (const pizza of state.pizzas) {
         if (!pizza.alive) continue;
         pizza.y += pizza.speed * (dt / 1000);
+        pizza.wobble += dt * 0.004;
+        const sway = Math.sin(pizza.wobble) * 0.012;
+        const drawX = pizza.x + sway;
+        pizza.el.style.left = `${drawX * 100}%`;
         pizza.el.style.top = `${pizza.y * 100}%`;
 
-        const dx = pizza.x - state.playerX;
+        const dx = drawX - state.playerX;
         const dy = pizza.y - playerY;
         if (Math.hypot(dx, dy) < catchR + pizza.radius) {
           catchPizza(pizza, false);
           continue;
         }
 
-        if (pizza.y > 1.12) {
+        if (pizza.y > 1.14) {
           pizza.alive = false;
           pizza.el.remove();
           if (pizza.kind !== "bomb") {
@@ -434,10 +507,10 @@
       state.paused = false;
       els.arena.querySelectorAll(".pizza").forEach((p) => p.remove());
       state.pizzas = [];
+      els.arena.classList.remove("crazy-mode");
       showScreen("pick");
     });
 
-    // Prevent iOS rubber-band / gestures interfering
     document.addEventListener(
       "touchmove",
       (e) => {
@@ -448,6 +521,7 @@
   }
 
   function init() {
+    preloadAssets();
     buildFloatingPizzas();
     buildTurtlePicker();
     bindControls();
