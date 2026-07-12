@@ -251,13 +251,39 @@
   const showcaseRoot = new THREE.Group();
   scene.add(showcaseRoot);
 
+  const fxRoot = new THREE.Group();
+  scene.add(fxRoot);
+  const gameFX = [];
+
   let playerMesh = null;
-  let mode = "showcase"; // showcase | game | idle
+  let mode = "showcase";
   const clock = new THREE.Clock();
+  let camShake = 0;
+  let prevLane = 1;
+
+  function spawnFX(kind, position, color) {
+    let mesh;
+    if (kind === "spark" && M.createHitSpark) mesh = M.createHitSpark();
+    else if (M.createConfettiBurst) mesh = M.createConfettiBurst(color || 0x3ecf7a);
+    else return;
+    mesh.position.copy(position);
+    fxRoot.add(mesh);
+    gameFX.push(mesh);
+  }
+
+  function updateAllFX(dt) {
+    for (let i = gameFX.length - 1; i >= 0; i--) {
+      const alive = M.updateFX ? M.updateFX(gameFX[i], dt) : false;
+      if (!alive) {
+        fxRoot.remove(gameFX[i]);
+        gameFX.splice(i, 1);
+      }
+    }
+  }
 
   function clearGroup(g) {
     while (g.children.length) {
-      const c = g.children.pop();
+      const c = g.children[0];
       g.remove(c);
       c.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
@@ -304,10 +330,9 @@
     }
     const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
     playerMesh = M.createTurtle3D(t.color);
-    playerMesh.scale.setScalar(1.05);
-    playerMesh.rotation.y = Math.PI; // face -Z (into tunnel / toward camera approach)
-    // Actually enemies come from -Z (ahead). Player should face -Z.
-    playerMesh.rotation.y = 0;
+    playerMesh.scale.setScalar(1.15);
+    playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
+    playerMesh.visible = true;
     scene.add(playerMesh);
     return playerMesh;
   }
@@ -585,6 +610,9 @@
   }
   function onDown(e) {
     if (!game.running || game.paused) return;
+    // ignore UI chrome taps
+    const t = e.target;
+    if (t && t.closest && t.closest("button, .overlay-card, .hud-btn, .super-btn")) return;
     dragging = true;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
     setLaneFromClientY(y);
@@ -597,10 +625,14 @@
   }
   function onUp() { dragging = false; }
 
-  canvas.addEventListener("pointerdown", onDown);
+  // Bind to window so UI overlays cannot block lane dragging
+  window.addEventListener("pointerdown", onDown);
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
-  canvas.addEventListener("touchmove", (e) => { if (dragging) e.preventDefault(); }, { passive: false });
+  window.addEventListener("pointercancel", onUp);
+  document.addEventListener("touchmove", (e) => {
+    if (dragging && game.running && !game.paused) e.preventDefault();
+  }, { passive: false });
 
   // ---------- UI builders ----------
   function buildPicker() {
@@ -698,15 +730,28 @@
     // move world / entities toward +Z (player fixed at z~0, looking down -Z)
     const move = game.speed * dt;
     worldRoot.position.z += move;
+    worldRoot.children.forEach((chunk) => {
+      if (M.animateSewerChunk) M.animateSewerChunk(chunk, t);
+    });
+
     if (playerMesh) {
-      game.laneX += (LANES_X[game.lane] - game.laneX) * Math.min(1, dt * 10);
+      const targetX = LANES_X[game.lane];
+      const dxLane = targetX - game.laneX;
+      game.laneX += dxLane * Math.min(1, dt * 12);
       playerMesh.position.x = game.laneX;
-      playerMesh.position.y = 0;
       playerMesh.position.z = 0;
+      // lean into lane change + run cycle
+      const lean = THREE.MathUtils.clamp(dxLane * 0.25, -0.45, 0.45);
+      playerMesh.rotation.z = lean;
+      playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
       M.animateTurtleRun(playerMesh, t);
-      // face forward into tunnel (-Z)
-      playerMesh.rotation.y = Math.PI;
+      if (prevLane !== game.lane) {
+        prevLane = game.lane;
+        camShake = 0.18;
+      }
     }
+
+    updateAllFX(dt);
 
     const px = game.laneX;
     const now = performance.now();
@@ -714,35 +759,38 @@
     for (const ent of [...game.entities]) {
       ent.mesh.position.z += move;
       if (ent.kind === "pickup") {
-        ent.mesh.rotation.y += dt * 2;
-        ent.mesh.position.y = 0.7 + Math.sin(t * 4 + ent.mesh.position.z) * 0.1;
+        ent.mesh.rotation.y += dt * 3.5;
+        ent.mesh.rotation.x = Math.sin(t * 5) * 0.25;
+        ent.mesh.position.y = 0.85 + Math.sin(t * 5 + ent.mesh.position.z) * 0.18;
         const dx = ent.mesh.position.x - px;
         const dz = ent.mesh.position.z - 0;
-        if (Math.hypot(dx, dz) < 1.85) {
+        if (Math.hypot(dx, dz) < 1.9) {
           game.pizzas += (ent.gold ? 3 : 1) * game.pizzaMult;
+          spawnFX("confetti", ent.mesh.position.clone().setY(1), ent.gold ? 0xffd54a : 0xff8a1f);
           removeEntity(ent);
           beep(ent.gold ? 880 : 660, 0.08, "triangle", 0.06);
           updateHud();
         }
       } else if (ent.kind === "enemy") {
+        if (M.animateBroccoli) M.animateBroccoli(ent.mesh, t, ent.type);
         if (ent.type === "ninja") {
-          ent.mesh.position.x = LANES_X[ent.baseLane] + Math.sin(t * 3 + ent.mesh.id) * 0.55;
-          ent.mesh.rotation.y += dt * 4;
-        } else {
-          ent.mesh.rotation.y = Math.sin(t * 2) * 0.2;
+          ent.mesh.position.x = LANES_X[ent.baseLane] + Math.sin(t * 4 + ent.mesh.id) * 0.7;
         }
         const dx = ent.mesh.position.x - px;
         const dz = ent.mesh.position.z - 0;
         const dist = Math.hypot(dx, dz);
-        if (dist < 1.25 && Math.abs(dz) < 1.1) {
-          // attack if roughly same lane
-          if (Math.abs(dx) < 1.1) {
+        if (dist < 1.35 && Math.abs(dz) < 1.2 && Math.abs(dx) < 1.2) {
+          if (!ent._hitAt || now - ent._hitAt > 280) {
+            ent._hitAt = now;
+            if (M.triggerAttack) M.triggerAttack(playerMesh);
             hitEnemy(ent);
+            spawnFX("spark", ent.mesh.position.clone().setY(1.1));
+            camShake = 0.25;
           }
         }
-        // enemy reaches player from behind-ish without being killed
         if (ent.mesh.position.z > 1.2 && Math.abs(ent.mesh.position.x - px) < 1.0) {
           hurtPlayer();
+          camShake = 0.35;
           removeEntity(ent);
         }
         if (ent.mesh.position.z > 8) removeEntity(ent);
@@ -751,33 +799,50 @@
 
     if (game.boss) {
       game.boss.mesh.position.z += move * 0.15;
-      // keep boss ahead
       if (game.boss.mesh.position.z > -6) game.boss.mesh.position.z = -6;
       if (game.boss.mesh.position.z < -16) game.boss.mesh.position.z = -16;
       game.boss.mesh.position.x = Math.sin(t * 1.2) * 1.5;
-      game.boss.mesh.rotation.y = Math.sin(t) * 0.3;
+      if (M.animateBroccoli) M.animateBroccoli(game.boss.mesh, t, "boss");
       const dx = game.boss.mesh.position.x - px;
       const dz = game.boss.mesh.position.z - 0;
-      if (Math.hypot(dx, dz) < 2.4) {
+      if (Math.hypot(dx, dz) < 2.5) {
+        if (M.triggerAttack) M.triggerAttack(playerMesh);
         hitBoss();
-        if (Math.random() < 0.25 && now > game.invulnUntil) hurtPlayer();
+        spawnFX("spark", game.boss.mesh.position.clone().setY(2));
+        camShake = 0.3;
+        if (Math.random() < 0.22 && now > game.invulnUntil) hurtPlayer();
       }
     }
 
     // shield destroys nearby enemies
     if (now < game.shieldUntil) {
       for (const ent of [...game.entities]) {
-        if (ent.kind === "enemy" && Math.hypot(ent.mesh.position.x - px, ent.mesh.position.z) < 2.2) {
+        if (ent.kind === "enemy" && Math.hypot(ent.mesh.position.x - px, ent.mesh.position.z) < 2.4) {
+          spawnFX("confetti", ent.mesh.position.clone().setY(1), 0x9b59d0);
           removeEntity(ent);
         }
       }
+      if (playerMesh) {
+        playerMesh.traverse((o) => {
+          if (o.isMesh && o.material && o.material.emissive) o.material.emissive.setHex(0x9b59d0);
+        });
+      }
+    } else if (playerMesh && game.pizzaMult === 1) {
+      playerMesh.traverse((o) => {
+        if (o.isMesh && o.material && o.material.emissive) o.material.emissive.setHex(0x000000);
+      });
     }
 
-    // camera follow
-    camera.position.x += (game.laneX * 0.35 - camera.position.x) * 0.08;
-    camera.position.y = 3.1;
-    camera.position.z = 7.2;
-    camera.lookAt(game.laneX * 0.2, 1.1, -4);
+    // cinematic camera follow + bob + shake
+    camShake = Math.max(0, camShake - dt);
+    const bob = Math.sin(t * 12) * 0.08;
+    const shakeX = (Math.random() - 0.5) * camShake;
+    const shakeY = (Math.random() - 0.5) * camShake;
+    const desiredCamX = game.laneX * 0.45 + shakeX;
+    camera.position.x += (desiredCamX - camera.position.x) * 0.12;
+    camera.position.y = 2.85 + bob + shakeY;
+    camera.position.z = 6.4;
+    camera.lookAt(game.laneX * 0.25, 1.15, -5);
 
     if (!stg.boss && game.progress >= 1) finishStage(false);
     if (stg.boss && game.progress >= 1.15 && game.bossHp > 0) {
