@@ -55,10 +55,22 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: "Fredoka", 
   padding: 0;
   pointer-events: none;
 }
-#screen-game .hud { pointer-events: none; }
+#screen-game .hud { pointer-events: none; z-index: 8; }
 #screen-game .hud-btn,
 #screen-game .super-btn {
   pointer-events: auto;
+  z-index: 9;
+  position: relative;
+}
+
+/* Full-screen touch catcher — sits above canvas, below HUD buttons */
+.touch-pad {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: auto;
+  touch-action: none;
+  background: transparent;
 }
 
 .overlay-screen { background: rgba(2,10,7,.78); backdrop-filter: blur(8px); z-index: 12; }
