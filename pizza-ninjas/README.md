@@ -4,7 +4,11 @@
 
 ## 🎮 לשחק עכשיו (אייפד / טלפון / מחשב)
 
-**קישור:** https://guyzom.github.io/desktop-tutorial/
+**קישור שעובד מיד (בלי הגדרות):**  
+https://cdn.jsdelivr.net/gh/guyzom/desktop-tutorial@main/pizza-ninjas/index.html
+
+**קישור קבוע (אחרי הפעלת Pages):**  
+https://guyzom.github.io/desktop-tutorial/
 
 פתחו ב־Safari באייפד → **שתף → הוסף למסך הבית** — והמשחק נפתח כמו אפליקציה.
 
