@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="פיצה נינג'ה" />
-  <title>צבי נינג'ה והפיצות! 🍕</title>
+  <meta name="apple-mobile-web-app-title" content="צבי נינג'ה!" />
+  <title>צבי נינג'ה מטורפים! 🍕</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Bungee&display=swap" rel="stylesheet" />
@@ -16,19 +16,33 @@
   <div id="app">
     <!-- START -->
     <section id="screen-start" class="screen active">
-      <div class="sewer-glow"></div>
+      <div class="scene-3d" aria-hidden="true">
+        <div class="tunnel-floor"></div>
+        <div class="tunnel-walls"></div>
+        <div class="neon-slime"></div>
+      </div>
       <div class="floating-pizzas" aria-hidden="true"></div>
+      <div class="hero-turtles" aria-hidden="true">
+        <img class="hero-turtle t1" src="assets/leo.png" alt="" />
+        <img class="hero-turtle t2" src="assets/raph.png" alt="" />
+        <img class="hero-turtle t3" src="assets/don.png" alt="" />
+        <img class="hero-turtle t4" src="assets/mikey.png" alt="" />
+      </div>
       <header class="hero-brand">
-        <p class="eyebrow">לאייפד · לגיל 4+</p>
+        <p class="eyebrow">לאייפד · לגיל 4+ · מטורף לגמרי</p>
         <h1>צבי נינג'ה</h1>
         <p class="tagline">תפסו פיצות · עשו קואבונגה!</p>
       </header>
       <button id="btn-start" class="big-btn pulse" type="button">בוא נשחק!</button>
-      <p class="hint">גררו את הצב · לחצו על פיצות</p>
+      <p class="hint">גררו את הצב · לחצו על פיצות באוויר</p>
     </section>
 
     <!-- PICK TURTLE -->
     <section id="screen-pick" class="screen">
+      <div class="scene-3d dim" aria-hidden="true">
+        <div class="tunnel-floor"></div>
+        <div class="tunnel-walls"></div>
+      </div>
       <h2 class="screen-title">בחרו צב נינג'ה!</h2>
       <div class="turtle-grid" id="turtle-grid"></div>
       <button id="btn-back-start" class="ghost-btn" type="button">חזרה</button>
@@ -38,26 +52,53 @@
     <section id="screen-game" class="screen">
       <div class="hud">
         <div class="hud-pill score-pill">
-          <span class="hud-icon">🍕</span>
+          <img class="hud-pizza" src="assets/pizza.png" alt="" />
           <span id="score">0</span>
         </div>
         <div class="hud-pill streak-pill">
           <span class="hud-icon">⚡</span>
           <span id="streak">0</span>
         </div>
+        <div class="hud-pill combo-pill" id="combo-pill" hidden>
+          <span id="combo-label">COMBO!</span>
+        </div>
         <button id="btn-pause" class="hud-btn" type="button" aria-label="השהה">⏸</button>
       </div>
       <div id="arena" class="arena">
-        <div class="pipe pipe-left"></div>
-        <div class="pipe pipe-right"></div>
+        <div class="arena-sky"></div>
+        <div class="arena-tunnel" aria-hidden="true">
+          <div class="depth-ring r1"></div>
+          <div class="depth-ring r2"></div>
+          <div class="depth-ring r3"></div>
+          <div class="depth-ring r4"></div>
+        </div>
+        <div class="arena-floor-3d"></div>
+        <div class="pipe pipe-left">
+          <div class="pipe-mouth"></div>
+          <div class="pipe-steam"></div>
+        </div>
+        <div class="pipe pipe-mid">
+          <div class="pipe-mouth"></div>
+          <div class="pipe-steam"></div>
+        </div>
+        <div class="pipe pipe-right">
+          <div class="pipe-mouth"></div>
+          <div class="pipe-steam"></div>
+        </div>
         <div id="catch-fx" class="catch-fx"></div>
-        <div id="player" class="turtle-player" aria-label="הצב שלכם"></div>
+        <div id="player" class="turtle-player" aria-label="הצב שלכם">
+          <div class="turtle-shadow"></div>
+          <div class="turtle-body">
+            <img id="player-img" class="turtle-sprite" src="assets/leo.png" alt="" />
+            <div class="turtle-rim"></div>
+          </div>
+        </div>
       </div>
       <div id="toast" class="toast" hidden></div>
       <div id="crazy-banner" class="crazy-banner" hidden>סערת פיצות!!!</div>
     </section>
 
-    <!-- PAUSE / WIN MOMENT -->
+    <!-- PAUSE -->
     <section id="screen-pause" class="screen overlay-screen">
       <div class="overlay-card">
         <h2>הפסקה קטנה</h2>
@@ -69,6 +110,7 @@
 
     <!-- CELEBRATION -->
     <div id="celebration" class="celebration" hidden>
+      <div class="cele-burst" aria-hidden="true"></div>
       <div class="cele-text" id="cele-text">קואבונגה!!!</div>
     </div>
   </div>
