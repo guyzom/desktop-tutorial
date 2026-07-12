@@ -1,0 +1,140 @@
+% ============================================================================
+% example_before_after.tex — MIGRATION gallery (same content, wrong → right).
+% Sister to example_tables.tex:  not "another widget", but a *decision* made
+% visual.  Agents imitate contrast harder than prose rules.
+%
+%   bash ../scripts/build.sh example_before_after.tex
+%   pdftoppm -png -r 140 example_before_after.pdf ba
+% ============================================================================
+\input{preamble.tex}
+\setcounter{chapter}{1}
+\begin{document}
+
+\chapter*{לפני / אחרי — ארבעה מעברים}
+\addcontentsline{toc}{chapter}{לפני / אחרי}
+
+\noindent כל זוג מציג \emph{אותו תוכן}. ״לפני״ = דפוס כשל נפוץ אצל סוכנים;
+״אחרי״ = מה ש־\texttt{content-style.md} דורש. העתק את צד ״אחרי״.
+
+% =====================================================================
+\section*{1. מקרא בתבליטים $\rightarrow$ טבלת סמל--משמעות}
+% =====================================================================
+
+\noindent\textbf{לפני — תבליטים (קשה לסריקה, נשבר ב־RTL).}
+
+\begin{notebox}[nobreak=true,frametitle={מוסכמות}]
+\begin{itemize}\itemsep2pt
+\item $\lfloor x\rfloor$ — עיגול כלפי מטה
+\item $x\bmod y$ — שארית חלוקה
+\item $\nabla\cdot\vec F$ — דיברגנץ
+\end{itemize}
+\end{notebox}
+
+\noindent\textbf{אחרי — טבלה אפורה (כמו \texttt{example\_tables} תבנית 2).}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}r@{\hspace{1.1cm}}p{8cm}@{}}
+\toprule
+\textbf{סימון} & \textbf{משמעות}\\
+\midrule
+\en{$\lfloor x \rfloor$}    & עיגול כלפי מטה.\\
+\en{$x \bmod y$}            & שארית החלוקה של \en{x} ב-\en{y}.\\
+\en{$\nabla \cdot \vec{F}$} & דיברגנץ של שדה וקטורי.\\
+\bottomrule
+\end{tabular}
+\tabcap{מוסכמות סימון.}
+\end{tablebox}
+
+\clearpage
+% =====================================================================
+\section*{2. דיון בתוך קופסה $\rightarrow$ ליבה בקופסה + פרוזה}
+% =====================================================================
+
+\noindent\textbf{לפני — קופסה בולענית (חצי עמוד ״הגדרה״).}
+
+\begin{defbox}[nobreak=true,frametitle={הגדרה — מטמון}]
+מטמון הוא זיכרון קטן ומהיר ששומר עותקים של בלוקים מהזיכרון הראשי.
+כשפוגעים בו חוסכים מאות מחזורים; כשמחמיצים משלמים את מחיר הזיכרון.
+יש מקומיות זמנית ומקומיות מרחבית, ושיטות החלפה כמו \en{LRU}.
+חשוב למדוד גם \en{hit time} וגם \en{miss rate}, כי שיפור באחד עלול להרע בשני.
+במערכות רב־ליבתיות נוספת גם שאלת הקוהרנטיות.
+\end{defbox}
+
+\noindent\textbf{אחרי — ליבה קצרה; הדיון בפרוזה.}
+\begin{defbox}[frametitle={הגדרה — מטמון}]
+זיכרון קטן ומהיר ששומר עותקי בלוקים מהזיכרון הראשי.
+\end{defbox}
+
+כשפוגעים חוסכים מאות מחזורים; כשמחמיצים משלמים את מחיר הזיכרון.
+לכן מודדים גם \en{hit time} וגם \en{miss rate} — שיפור באחד עלול להרע בשני.
+
+\clearpage
+% =====================================================================
+\section*{3. נוסחת מפתח בקופסה $\rightarrow$ משוואה ממוספרת בחוץ}
+% =====================================================================
+
+\noindent\textbf{לפני — הנוסחה ״כלואה״ בקופסה (לא עמוד־שדרה).}
+
+\begin{keybox}[nobreak=true,frametitle={רעיון מפתח}]
+המדד המרכזי הוא
+\[ T_{\mathrm{avg}}=T_h+r_m T_m \]
+ויש לשאוף להקטין את שני הגורמים יחד.
+\end{keybox}
+
+\noindent\textbf{אחרי — קופסה לרעיון; נוסחה ממוספרת בחוץ.}
+\begin{keybox}[frametitle={רעיון מפתח — \en{AMAT}}]
+מדד יחיד שמאחד זמן פגיעה ושיעור החמצה.
+\end{keybox}
+
+\begin{equation}
+\label{eq:ba-amat}
+T_{\mathrm{avg}}=T_h+r_m T_m
+\end{equation}
+
+המשמעות של~\eqref{eq:ba-amat}: בלי שני הגורמים יחד אין החלטת תכנון.
+
+\clearpage
+% =====================================================================
+\section*{4. קיר קופסאות $\rightarrow$ קצב פרק}
+% =====================================================================
+
+\noindent\textbf{לפני — שלוש קופסאות ברצף (גלריה מתחפשת לפרק).}
+
+\begin{defbox}[frametitle={הגדרה — \en{RAW}}]
+קריאה אחרי כתיבה: שימוש באוגר לפני שהכתיבה הסתיימה.
+\end{defbox}
+\begin{keybox}[frametitle={רעיון מפתח}]
+קידום מפחית את רוב הסכסוכים, אך לא את \en{load-use}.
+\end{keybox}
+\begin{warnbox}[frametitle={מלכודת}]
+התעלמות מ־\en{stall} נראית כמו ״IPC גבוה״ במדידה חלקית.
+\end{warnbox}
+
+\vspace{0.8em}
+\noindent\textbf{אחרי — קופסה אחת + משוואה + פרוזה + רשימה.}
+\begin{warnbox}[frametitle={מלכודת — \en{load-use}}]
+גם עם קידום מלא, \code{lw} ואחריו שימוש דורשים \en{stall}.
+\end{warnbox}
+
+\begin{equation}
+\label{eq:ba-stall}
+T_{\mathrm{stall}}=N_{\mathrm{load\text{-}use}}
+\end{equation}
+
+לפי~\eqref{eq:ba-stall} סופרים זוגות, לא תחושות. אחר כך בודקים מה הקידום כבר כיסה.
+
+\begin{enumerate}\itemsep2pt
+\item[(\textbf{א})] ספור \en{load-use}.
+\item[(\textbf{ב})] בדוק כיסוי קידום.
+\item[(\textbf{ג})] רק אז שנה תזמון.
+\end{enumerate}
+
+\vspace{1em}
+\begin{center}
+\fbox{\parbox{0.88\textwidth}{\centering\small
+\textbf{כלל אצבע:} אם אפשר להסיר מסגרת/צל/רקע בלי לאבד הבנה —
+זה לא צריך להיות קופסה צבעונית. טבלה אפורה ומשוואה ממוספרת הן ברירת המחדל.
+}}
+\end{center}
+
+\end{document}

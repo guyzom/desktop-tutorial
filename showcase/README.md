@@ -49,6 +49,25 @@ cd docs && python3 gen_anthology.py && bash ../scripts/build.sh anthology.tex
 cp anthology.pdf ../../output/anthology-100pp.pdf
 ```
 
+## Content-style galleries (new)
+
+Compiled exemplars that teach **document rhythm**, not just widget catalogs:
+
+| | |
+|---|---|
+| Chapter rhythm + density ruler | `hebrew-lualatex-pdf/assets/example_chapter.tex` → `output/example_chapter.pdf` (4 pp) |
+| Before → after migrations | `hebrew-lualatex-pdf/assets/example_before_after.tex` → `output/example_before_after.pdf` (4 pp) |
+| Page previews | `output/galleries/*.png` |
+
+```bash
+cd hebrew-lualatex-pdf/assets
+bash ../scripts/build.sh example_chapter.tex
+bash ../scripts/build.sh example_before_after.tex
+cp example_chapter.pdf example_before_after.pdf ../../output/
+pdftoppm -png -r 140 example_chapter.pdf ../../output/galleries/chapter
+pdftoppm -png -r 140 example_before_after.pdf ../../output/galleries/before-after
+```
+
 ## Agent brief
 
 `briefs/make-browser-pdf-impressive.md` — how to make browser output more visually impressive.

@@ -1,0 +1,128 @@
+% ============================================================================
+% example_chapter.tex — CHAPTER RHYTHM gallery (content-style DNA).
+% Not a box catalog:  a density ruler + 3 full short chapters that show the
+% target cadence: one idea → one short box → numbered equation → short intuition.
+%
+%   bash ../scripts/build.sh example_chapter.tex
+%   pdftoppm -png -r 140 example_chapter.pdf ch
+%
+% THIS is what to imitate when writing a study doc.  example_boxes.tex is only
+% for picking a box *type* — not for chapter density.
+% ============================================================================
+\input{preamble.tex}
+\begin{document}
+
+% ---------------------------------------------------------------------------
+% Density ruler — one page that *is* the target balance, labeled.
+% ---------------------------------------------------------------------------
+\chapter*{סרגל צפיפות — היעד הוויזואלי}
+\addcontentsline{toc}{chapter}{סרגל צפיפות}
+\setcounter{chapter}{1}
+
+\noindent זהו עמוד־כיול. ספור: \textbf{קופסה אחת}, \textbf{שתי משוואות ממוספרות},
+\textbf{טבלה אפורה אחת}, והשאר פרוזה. זה היחס ש־\texttt{content-style.md} דורש —
+לא קיר קופסאות.
+
+\begin{defbox}[frametitle={הגדרה — זמן גישה ממוצע}]
+$\mathrm{AMAT}=T_{\mathrm{hit}}+r_{\mathrm{miss}}T_{\mathrm{miss}}$.
+\end{defbox}
+
+המדד מאחד שני מספרים שקל להתעלם מאחד מהם: זמן פגיעה ושיעור החמצה.
+
+\begin{equation}
+\label{eq:amat-ruler}
+T_{\mathrm{avg}}=T_h+r_m T_m
+\end{equation}
+
+אם רק מקטינים את $T_h$ ומשאירים $r_m$ גבוה —~\eqref{eq:amat-ruler} כמעט לא זז.
+
+\begin{equation}
+\label{eq:amat-sens}
+\frac{\partial T_{\mathrm{avg}}}{\partial r_m}=T_m
+\end{equation}
+
+~\eqref{eq:amat-sens} אומרת: רגישות לשיעור החמצה היא בדיוק מחיר ההחמצה.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{סדר גודל} & \textbf{פעולה}\\
+\midrule
+תקין & $\sim 1\times$ & שמור מדידה\\
+חשוד & $1.5$–$2\times$ & בודקים תלות\\
+שבור & $\ge 2\times$ & תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{כיול מהיר ל־\en{AMAT}.}
+\end{tablebox}
+
+\noindent\textbf{לקח מהעמוד:} רוב השטח הוא פרוזה + משוואות + טבלה אפורה;
+הקופסה הצבעונית היא הדגשה, לא שלד המסמך.
+
+% ---------------------------------------------------------------------------
+% Chapter 1 — theorem box + short prose proof (no-cloning DNA)
+% ---------------------------------------------------------------------------
+\chapter{משפט אי־השכפול}
+\label{ch:noclone}
+
+\begin{thmbox}[frametitle={\texorpdfstring{$\mathrm{No\text{-}Cloning}$}{No-Cloning}}]
+לא קיים אופרטור אוניטרי $U$ המייצר עותק זהה של מצב קוונטי \emph{שרירותי}, כלומר כך ש־
+$U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi$ לכל $\ket\psi$.
+\end{thmbox}
+\noindent\textbf{הוכחה (בקצרה).} נניח שקיים $U$ כזה עבור שני מצבים $\ket\psi,\ket\phi$. אז
+$\braket{\psi}{\phi}=\bra\psi\bra0\,U^\dagger U\,\ket\phi\ket0=\braket{\psi}{\phi}^2$, ולכן
+$\braket{\psi}{\phi}\in\{0,1\}$ — כלומר המצבים זהים או אורתוגונליים. שכפול אוניברסלי של מצב
+שרירותי סותר את הליניאריות. $\qquad\blacksquare$
+
+% ---------------------------------------------------------------------------
+% Chapter 2 — goal sentence + enumerate + circuit (dense coding DNA)
+% ---------------------------------------------------------------------------
+\chapter{קידוד צפוף}
+\label{ch:dense}
+
+המטרה: להעביר \emph{שני} סיביות קלאסיות בעזרת שליחת \emph{קיוביט אחד}, תוך ניצול שזירה משותפת.
+
+\begin{enumerate}\itemsep3pt
+\item[(\textbf{א})] אליס ובוב חולקים מראש את
+$\ket{\psi_{00}}=\tfrac1{\sqrt2}(\ket{00}+\ket{11})$.
+\item[(\textbf{ב})] לפי שני הסיביות, אליס מפעילה על הקיוביט שלה אחד מ־
+$\{\,I\to00,\ X\to01,\ Z\to10,\ XZ\to11\,\}$, והמצב המשותף הופך לאחד מארבעת מצבי בל.
+\item[(\textbf{ג})] אליס שולחת את הקיוביט; בוב מפעיל $\mathrm{CNOT}$ ואז $H$ ומודד —
+ומקבל בדיוק את שני הסיביות.
+\end{enumerate}
+
+\begin{qcirc}
+\begin{quantikz}
+\lstick[2]{$\ket{\psi_{00}}$} & \gate{U\in\{I,X,Z,XZ\}} & \ctrl{1} & \gate{H} & \meter{} \\
+ & \qw & \targ{} & \qw & \meter{}
+\end{quantikz}
+\end{qcirc}
+\begin{center}\small קידוד צפוף: אליס מקודדת, שולחת, ובוב מפענח בבסיס בל.\end{center}
+
+% ---------------------------------------------------------------------------
+% Chapter 3 — systems: def + numbered eq + short intuition + steps
+% ---------------------------------------------------------------------------
+\chapter{סכסוך נתונים בצנרת}
+\label{ch:hazard}
+
+היחידה נסגרת סביב \en{RAW}: מתי נוצר, איך מודדים אותו, ומה נשבר כשמתעלמים ממנו.
+
+\begin{warnbox}[frametitle={מלכודת — קידום לא תמיד מספיק}]
+גם עם קידום מלא, \code{lw} ואחריו שימוש דורשים \en{stall} של מחזור.
+\end{warnbox}
+
+\begin{equation}
+\label{eq:stall}
+T_{\mathrm{stall}}=N_{\mathrm{load\text{-}use}}
+\end{equation}
+
+המשמעות של~\eqref{eq:stall}: מספר זוגות \en{load-use} הוא המדד — לא ״יש/אין סכסוך״.
+
+סדר עבודה:
+\begin{enumerate}\itemsep3pt
+\item[(\textbf{א})] ספור זוגות \en{load-use} לפי~\eqref{eq:stall}.
+\item[(\textbf{ב})] בדוק אם קידום מכסה את השאר.
+\item[(\textbf{ג})] רק אז שנה תזמון או סדר הוראות.
+\end{enumerate}
+
+\end{document}
