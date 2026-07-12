@@ -1,0 +1,3933 @@
+% anthology.tex — dense ~100-page Hebrew academic showcase (generated)
+% Build: bash ../scripts/build.sh anthology.tex
+\input{preamble.tex}
+\usepackage{graphicx}
+
+\title{לקט מערכות וחישוב}
+\author{אנציקלופדיית לימוד צפופה — ראווה ל־hebrew-lualatex-pdf}
+\date{}
+
+\begin{document}
+\begin{titlepage}
+\centering\vspace*{3.8cm}
+{\Huge\bfseries לקט מערכות וחישוב\par}
+\vspace{1.0cm}
+{\Large ארכיטקטורה / מערכות / אלגוריתמים / למידה / קוונטים / אבטחה\par}
+\vspace{0.8cm}
+{\large מסמך ראווה צפוף לצינור \en{hebrew-lualatex-pdf}\par}
+\vspace{0.5cm}
+{\large מטרה: $\sim$100 עמודים עם משוואות, קופסאות, טבלאות, קוד ותרגילים\par}
+\vfill
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+\part{ארכיטקטורת מעבדים}
+
+\chapter{צנרת בסיסית}
+\label{ch:pipeline}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״צנרת בסיסית״. המילה המנחה היא \en{CPI}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — צנרת בסיסית}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{CPI}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:pipeline}
+\mathrm{CPI}_{\mathrm{ideal}}=1
+\end{equation}
+משוואה~\eqref{eq:pipeline} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{CPI} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:pipeline}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathrm{CPI}_{\mathrm{ideal}}=\,1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:pipeline}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{CPI}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{CPI} בפרק~\ref{ch:pipeline}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{CPI} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{CPI}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{CPI}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{CPI} דרך~\eqref{eq:pipeline}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{סכסוכי נתונים}
+\label{ch:hazards}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סכסוכי נתונים״. המילה המנחה היא \en{RAW}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סכסוכי נתונים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{RAW}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:hazards}
+T_{\mathrm{stall}}=N_{\mathrm{load\text{-}use}}\cdot 1
+\end{equation}
+משוואה~\eqref{eq:hazards} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{RAW} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:hazards}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{stall}}=\,N_{\mathrm{load\text{-}use}}\cdot 1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:hazards}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:hazards} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{RAW} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{RAW} דרך~\eqref{eq:hazards}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{סכסוכי בקרה}
+\label{ch:control}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סכסוכי בקרה״. המילה המנחה היא \en{branch}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סכסוכי בקרה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{branch}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:control}
+P_{\mathrm{mispredict}}\cdot T_{\mathrm{penalty}}
+\end{equation}
+משוואה~\eqref{eq:control} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{branch} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:control}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+P_{\mathrm{mispredict}}\cdot T_{\mathrm{penalty}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:control}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{branch}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{branch} בפרק~\ref{ch:control}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{branch} דרך~\eqref{eq:control}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קידום אוגרים}
+\label{ch:forward}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קידום אוגרים״. המילה המנחה היא \en{bypass}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קידום אוגרים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{bypass}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:forward}
+T_{\mathrm{fwd}} \ll T_{\mathrm{stall}}
+\end{equation}
+משוואה~\eqref{eq:forward} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{bypass} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:forward}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{fwd}} \ll T_{\mathrm{stall}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:forward}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{bypass} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:forward} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{bypass} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{bypass} דרך~\eqref{eq:forward}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{חיזוי קפיצות}
+\label{ch:branchpred}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״חיזוי קפיצות״. המילה המנחה היא \en{BHT}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — חיזוי קפיצות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{BHT}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:branchpred}
+A = 1 - P_{\mathrm{mis}}
+\end{equation}
+משוואה~\eqref{eq:branchpred} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{BHT} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:branchpred}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+A =\, 1 - P_{\mathrm{mis}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:branchpred}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{BHT}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{BHT} בפרק~\ref{ch:branchpred}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{BHT}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{BHT}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{BHT} דרך~\eqref{eq:branchpred}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{סופרסקלר}
+\label{ch:superscalar}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סופרסקלר״. המילה המנחה היא \en{IPC}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סופרסקלר}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{IPC}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:superscalar}
+\mathrm{IPC}_{\mathrm{peak}} = W
+\end{equation}
+משוואה~\eqref{eq:superscalar} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{IPC} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:superscalar}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathrm{IPC}_{\mathrm{peak}} =\, W
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:superscalar}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:superscalar} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{IPC} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{IPC} דרך~\eqref{eq:superscalar}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{ביצוע מחוץ לסדר}
+\label{ch:ooo}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״ביצוע מחוץ לסדר״. המילה המנחה היא \en{ROB}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — ביצוע מחוץ לסדר}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{ROB}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:ooo}
+N_{\mathrm{ROB}} \ge W\cdot L
+\end{equation}
+משוואה~\eqref{eq:ooo} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{ROB} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:ooo}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+N_{\mathrm{ROB}} \ge W\cdot L
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:ooo}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{ROB}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{ROB} בפרק~\ref{ch:ooo}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{ROB} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{ROB} דרך~\eqref{eq:ooo}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{רישום מחדש}
+\label{ch:rename}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רישום מחדש״. המילה המנחה היא \en{RAT}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רישום מחדש}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{RAT}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:rename}
+\mathrm{RAT}: a_r \mapsto p_i
+\end{equation}
+משוואה~\eqref{eq:rename} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{RAT} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:rename}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathrm{RAT}: a_r \mapsto p_i
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:rename}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:rename} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{RAT} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{RAT} דרך~\eqref{eq:rename}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — ארכיטקטורת מעבדים}
+\label{ch:bridge-8}
+
+הפרקים הקודמים בחלק ״ארכיטקטורת מעבדים״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{היררכיית זיכרון}
+
+\chapter{מטמון L1}
+\label{ch:l1}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מטמון L1״. המילה המנחה היא \en{AMAT}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מטמון L1}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{AMAT}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:l1}
+T_{\mathrm{avg}}=T_h+r_m T_m
+\end{equation}
+משוואה~\eqref{eq:l1} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{AMAT} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:l1}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{avg}}=\,T_h+r_m T_m
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:l1}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{AMAT}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{AMAT} בפרק~\ref{ch:l1}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{AMAT} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{AMAT}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{AMAT}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{AMAT} דרך~\eqref{eq:l1}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מטמון L2/L3}
+\label{ch:l2}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מטמון L2/L3״. המילה המנחה היא \en{inclusive}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מטמון L2/L3}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{inclusive}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:l2}
+T_{\mathrm{avg}}=T_{L1}+r_1(T_{L2}+r_2 T_{\mathrm{mem}})
+\end{equation}
+משוואה~\eqref{eq:l2} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{inclusive} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:l2}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{avg}}=\,T_{L1}+r_1(T_{L2}+r_2 T_{\mathrm{mem}})
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:l2}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:l2} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{inclusive} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{inclusive} דרך~\eqref{eq:l2}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מדיניות החלפה}
+\label{ch:repl}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מדיניות החלפה״. המילה המנחה היא \en{LRU}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מדיניות החלפה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{LRU}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:repl}
+C_{\mathrm{conflict}} \downarrow \text{ with associativity}
+\end{equation}
+משוואה~\eqref{eq:repl} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{LRU} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:repl}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+C_{\mathrm{conflict}} \downarrow \text{ with associativity}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:repl}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{LRU}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{LRU} בפרק~\ref{ch:repl}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{LRU} דרך~\eqref{eq:repl}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מקומיות}
+\label{ch:locality}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מקומיות״. המילה המנחה היא \en{temporal}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מקומיות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{temporal}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:locality}
+P(\mathrm{reuse}\mid t) \propto e^{-t/\tau}
+\end{equation}
+משוואה~\eqref{eq:locality} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{temporal} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:locality}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+P(\mathrm{reuse}\mid t) \propto e^{-t/\tau}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:locality}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{temporal} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:locality} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{temporal} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{temporal} דרך~\eqref{eq:locality}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{TLB ותרגום}
+\label{ch:tlb}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״TLB ותרגום״. המילה המנחה היא \en{VPN}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — TLB ותרגום}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{VPN}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:tlb}
+T_{\mathrm{addr}}=T_{\mathrm{TLB}}+r_{\mathrm{TLB}}T_{\mathrm{PTW}}
+\end{equation}
+משוואה~\eqref{eq:tlb} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{VPN} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:tlb}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{addr}}=\,T_{\mathrm{TLB}}+r_{\mathrm{TLB}}T_{\mathrm{PTW}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:tlb}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{VPN}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{VPN} בפרק~\ref{ch:tlb}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{VPN}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{VPN}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{VPN} דרך~\eqref{eq:tlb}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{זיכרון וירטואלי}
+\label{ch:vm}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״זיכרון וירטואלי״. המילה המנחה היא \en{page}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — זיכרון וירטואלי}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{page}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:vm}
+VA = VPN \| offset
+\end{equation}
+משוואה~\eqref{eq:vm} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{page} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:vm}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+VA =\, VPN \| offset
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:vm}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:vm} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{page} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{page} דרך~\eqref{eq:vm}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קוהרנטיות מטמונים}
+\label{ch:coherency}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קוהרנטיות מטמונים״. המילה המנחה היא \en{MESI}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קוהרנטיות מטמונים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{MESI}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:coherency}
+S \to M \text{ on write}
+\end{equation}
+משוואה~\eqref{eq:coherency} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{MESI} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:coherency}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+S \to M \text{ on write}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:coherency}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{MESI}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{MESI} בפרק~\ref{ch:coherency}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{MESI} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{MESI} דרך~\eqref{eq:coherency}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{רוחב פס זיכרון}
+\label{ch:membw}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רוחב פס זיכרון״. המילה המנחה היא \en{bandwidth}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רוחב פס זיכרון}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{bandwidth}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:membw}
+BW = f\cdot W\cdot U
+\end{equation}
+משוואה~\eqref{eq:membw} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{bandwidth} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:membw}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+BW =\, f\cdot W\cdot U
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:membw}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:membw} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{bandwidth} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{bandwidth} דרך~\eqref{eq:membw}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — היררכיית זיכרון}
+\label{ch:bridge-16}
+
+הפרקים הקודמים בחלק ״היררכיית זיכרון״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{מערכות הפעלה}
+
+\chapter{תהליכים וחוטים}
+\label{ch:proc}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״תהליכים וחוטים״. המילה המנחה היא \en{PCB}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — תהליכים וחוטים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{PCB}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:proc}
+N_{\mathrm{ready}} = N - N_{\mathrm{blocked}}
+\end{equation}
+משוואה~\eqref{eq:proc} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{PCB} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:proc}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+N_{\mathrm{ready}} =\, N - N_{\mathrm{blocked}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:proc}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{PCB}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{PCB} בפרק~\ref{ch:proc}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{PCB} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{PCB}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{PCB}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{PCB} דרך~\eqref{eq:proc}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{תזמון מעבד}
+\label{ch:sched}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״תזמון מעבד״. המילה המנחה היא \en{CFS}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — תזמון מעבד}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{CFS}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:sched}
+vruntime_i += \Delta t \cdot w_0/w_i
+\end{equation}
+משוואה~\eqref{eq:sched} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{CFS} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:sched}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+vruntime_i +=\, \Delta t \cdot w_0/w_i
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:sched}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:sched} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{CFS} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{CFS} דרך~\eqref{eq:sched}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{סנכרון}
+\label{ch:sync}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סנכרון״. המילה המנחה היא \en{mutex}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סנכרון}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{mutex}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:sync}
+P(\mathrm{contention}) \propto N_{\mathrm{cores}}
+\end{equation}
+משוואה~\eqref{eq:sync} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{mutex} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:sync}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+P(\mathrm{contention}) \propto N_{\mathrm{cores}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:sync}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{mutex}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{mutex} בפרק~\ref{ch:sync}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{mutex} דרך~\eqref{eq:sync}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קיפאון}
+\label{ch:deadlock}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קיפאון״. המילה המנחה היא \en{Coffman}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קיפאון}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{Coffman}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:deadlock}
+\nexists\, \mathrm{cycle} \Rightarrow \mathrm{safe}
+\end{equation}
+משוואה~\eqref{eq:deadlock} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{Coffman} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:deadlock}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\nexists\, \mathrm{cycle} \Rightarrow \mathrm{safe}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:deadlock}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{Coffman} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:deadlock} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{Coffman} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{Coffman} דרך~\eqref{eq:deadlock}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{ניהול זיכרון}
+\label{ch:memman}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״ניהול זיכרון״. המילה המנחה היא \en{buddy}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — ניהול זיכרון}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{buddy}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:memman}
+2^k \text{ blocks}
+\end{equation}
+משוואה~\eqref{eq:memman} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{buddy} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:memman}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+2^k \text{ blocks}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:memman}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{buddy}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{buddy} בפרק~\ref{ch:memman}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{buddy}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{buddy}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{buddy} דרך~\eqref{eq:memman}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קלט/פלט}
+\label{ch:io}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קלט/פלט״. המילה המנחה היא \en{DMA}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קלט/פלט}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{DMA}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:io}
+T_{\mathrm{IO}}=T_{\mathrm{setup}}+S/BW
+\end{equation}
+משוואה~\eqref{eq:io} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{DMA} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:io}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{IO}}=\,T_{\mathrm{setup}}+S/BW
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:io}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:io} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{DMA} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{DMA} דרך~\eqref{eq:io}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מערכות קבצים}
+\label{ch:fs}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מערכות קבצים״. המילה המנחה היא \en{inode}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מערכות קבצים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{inode}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:fs}
+S = n_{\mathrm{blocks}}\cdot B
+\end{equation}
+משוואה~\eqref{eq:fs} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{inode} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:fs}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+S =\, n_{\mathrm{blocks}}\cdot B
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:fs}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{inode}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{inode} בפרק~\ref{ch:fs}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{inode} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{inode} דרך~\eqref{eq:fs}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{וירטואליזציה}
+\label{ch:virt}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״וירטואליזציה״. המילה המנחה היא \en{VMEXIT}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — וירטואליזציה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{VMEXIT}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:virt}
+T_{\mathrm{virt}}=T_{\mathrm{guest}}+f_{\mathrm{exit}}T_{\mathrm{exit}}
+\end{equation}
+משוואה~\eqref{eq:virt} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{VMEXIT} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:virt}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{virt}}=\,T_{\mathrm{guest}}+f_{\mathrm{exit}}T_{\mathrm{exit}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:virt}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:virt} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{VMEXIT} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{VMEXIT} דרך~\eqref{eq:virt}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — מערכות הפעלה}
+\label{ch:bridge-24}
+
+הפרקים הקודמים בחלק ״מערכות הפעלה״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{רשתות ותקשורת}
+
+\chapter{מודל השכבות}
+\label{ch:layers}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מודל השכבות״. המילה המנחה היא \en{OSI}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מודל השכבות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{OSI}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:layers}
+L_i \to L_{i-1}
+\end{equation}
+משוואה~\eqref{eq:layers} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{OSI} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:layers}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+L_i \to L_{i-1}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:layers}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{OSI}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{OSI} בפרק~\ref{ch:layers}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{OSI} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{OSI}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{OSI}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{OSI} דרך~\eqref{eq:layers}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{TCP}
+\label{ch:tcp}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״TCP״. המילה המנחה היא \en{cwnd}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — TCP}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{cwnd}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:tcp}
+cwnd_{t+1}=cwnd_t + 1/\mathrm{cwnd}_t
+\end{equation}
+משוואה~\eqref{eq:tcp} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{cwnd} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:tcp}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+cwnd_{t+1}=\,cwnd_t + 1/\mathrm{cwnd}_t
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:tcp}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:tcp} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{cwnd} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{cwnd} דרך~\eqref{eq:tcp}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{ניתוב}
+\label{ch:routing}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״ניתוב״. המילה המנחה היא \en{SPF}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — ניתוב}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{SPF}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:routing}
+d(v)=\min_u d(u)+w(u,v)
+\end{equation}
+משוואה~\eqref{eq:routing} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{SPF} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:routing}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+d(v)=\,\min_u d(u)+w(u,v)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:routing}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{SPF}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{SPF} בפרק~\ref{ch:routing}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{SPF} דרך~\eqref{eq:routing}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{עומסים ו־QoS}
+\label{ch:qos}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״עומסים ו־QoS״. המילה המנחה היא \en{latency}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — עומסים ו־QoS}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{latency}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:qos}
+L = L_{\mathrm{prop}}+L_{\mathrm{queue}}+L_{\mathrm{tx}}
+\end{equation}
+משוואה~\eqref{eq:qos} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{latency} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:qos}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+L =\, L_{\mathrm{prop}}+L_{\mathrm{queue}}+L_{\mathrm{tx}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:qos}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{latency} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:qos} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{latency} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{latency} דרך~\eqref{eq:qos}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{אבטחת רשת}
+\label{ch:netsec}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״אבטחת רשת״. המילה המנחה היא \en{TLS}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — אבטחת רשת}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{TLS}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:netsec}
+\mathrm{TLS} = \mathrm{handshake}+\mathrm{record}
+\end{equation}
+משוואה~\eqref{eq:netsec} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{TLS} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:netsec}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathrm{TLS} =\, \mathrm{handshake}+\mathrm{record}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:netsec}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{TLS}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{TLS} בפרק~\ref{ch:netsec}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{TLS}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{TLS}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{TLS} דרך~\eqref{eq:netsec}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{CDN ומטמונים}
+\label{ch:cdn}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״CDN ומטמונים״. המילה המנחה היא \en{HIT}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — CDN ומטמונים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{HIT}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:cdn}
+T_{\mathrm{user}}=T_{\mathrm{edge}}+r_{\mathrm{miss}}T_{\mathrm{origin}}
+\end{equation}
+משוואה~\eqref{eq:cdn} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{HIT} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:cdn}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T_{\mathrm{user}}=\,T_{\mathrm{edge}}+r_{\mathrm{miss}}T_{\mathrm{origin}}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:cdn}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:cdn} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{HIT} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{HIT} דרך~\eqref{eq:cdn}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — רשתות ותקשורת}
+\label{ch:bridge-30}
+
+הפרקים הקודמים בחלק ״רשתות ותקשורת״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{אלגוריתמים ומבני נתונים}
+
+\chapter{סיבוכיות}
+\label{ch:complexity}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סיבוכיות״. המילה המנחה היא \en{BigO}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סיבוכיות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{BigO}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:complexity}
+T(n)=\Theta(n\log n)
+\end{equation}
+משוואה~\eqref{eq:complexity} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{BigO} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:complexity}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T(n)=\,\Theta(n\log n)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:complexity}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{BigO}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{BigO} בפרק~\ref{ch:complexity}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{BigO} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{BigO}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{BigO}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{BigO} דרך~\eqref{eq:complexity}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מיונים}
+\label{ch:sort}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מיונים״. המילה המנחה היא \en{quicksort}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מיונים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{quicksort}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:sort}
+T(n)=2T(n/2)+\Theta(n)
+\end{equation}
+משוואה~\eqref{eq:sort} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{quicksort} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:sort}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+T(n)=\,2T(n/2)+\Theta(n)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:sort}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:sort} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{quicksort} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{quicksort} דרך~\eqref{eq:sort}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{גרפים}
+\label{ch:graphs}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״גרפים״. המילה המנחה היא \en{BFS}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — גרפים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{BFS}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:graphs}
+|E|_{\mathrm{tree}}=|V|-1
+\end{equation}
+משוואה~\eqref{eq:graphs} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{BFS} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:graphs}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+|E|_{\mathrm{tree}}=\,|V|-1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:graphs}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{BFS}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{BFS} בפרק~\ref{ch:graphs}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{BFS} דרך~\eqref{eq:graphs}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{תכנון דינמי}
+\label{ch:dp}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״תכנון דינמי״. המילה המנחה היא \en{opt}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — תכנון דינמי}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{opt}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:dp}
+OPT(i)=\min_j OPT(j)+c(j,i)
+\end{equation}
+משוואה~\eqref{eq:dp} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{opt} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:dp}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+OPT(i)=\,\min_j OPT(j)+c(j,i)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:dp}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{opt} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:dp} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{opt} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{opt} דרך~\eqref{eq:dp}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{גיבוב}
+\label{ch:hash}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״גיבוב״. המילה המנחה היא \en{chaining}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — גיבוב}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{chaining}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:hash}
+\alpha = n/m
+\end{equation}
+משוואה~\eqref{eq:hash} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{chaining} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:hash}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\alpha =\, n/m
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:hash}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{chaining}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{chaining} בפרק~\ref{ch:hash}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{chaini}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{chaining}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{chaining} דרך~\eqref{eq:hash}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{עצים מאוזנים}
+\label{ch:trees}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״עצים מאוזנים״. המילה המנחה היא \en{AVL}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — עצים מאוזנים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{AVL}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:trees}
+h = O(\log n)
+\end{equation}
+משוואה~\eqref{eq:trees} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{AVL} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:trees}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+h =\, O(\log n)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:trees}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:trees} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{AVL} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{AVL} דרך~\eqref{eq:trees}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{זרימה ברשתות}
+\label{ch:flow}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״זרימה ברשתות״. המילה המנחה היא \en{maxflow}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — זרימה ברשתות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{maxflow}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:flow}
+v(f)=\sum_{e\mid s} f(e)
+\end{equation}
+משוואה~\eqref{eq:flow} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{maxflow} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:flow}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+v(f)=\,\sum_{e\mid s} f(e)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:flow}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{maxflow}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{maxflow} בפרק~\ref{ch:flow}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{maxflow} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{maxflow} דרך~\eqref{eq:flow}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קירובים}
+\label{ch:approx}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קירובים״. המילה המנחה היא \en{ratio}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קירובים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{ratio}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:approx}
+ALG \le \rho\cdot OPT
+\end{equation}
+משוואה~\eqref{eq:approx} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{ratio} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:approx}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+ALG \le \rho\cdot OPT
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:approx}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:approx} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{ratio} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{ratio} דרך~\eqref{eq:approx}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — אלגוריתמים ומבני נתונים}
+\label{ch:bridge-38}
+
+הפרקים הקודמים בחלק ״אלגוריתמים ומבני נתונים״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{למידת מכונה}
+
+\chapter{רגרסיה לינארית}
+\label{ch:linreg}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רגרסיה לינארית״. המילה המנחה היא \en{MSE}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רגרסיה לינארית}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{MSE}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:linreg}
+\hat\beta=(X^\top X)^{-1}X^\top y
+\end{equation}
+משוואה~\eqref{eq:linreg} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{MSE} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:linreg}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\hat\beta=\,(X^\top X)^{-1}X^\top y
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:linreg}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{MSE}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{MSE} בפרק~\ref{ch:linreg}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{MSE} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{MSE}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{MSE}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{MSE} דרך~\eqref{eq:linreg}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{סיווג}
+\label{ch:clf}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״סיווג״. המילה המנחה היא \en{logistic}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — סיווג}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{logistic}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:clf}
+p=\sigma(w^\top x)
+\end{equation}
+משוואה~\eqref{eq:clf} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{logistic} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:clf}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+p=\,\sigma(w^\top x)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:clf}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:clf} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{logistic} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{logistic} דרך~\eqref{eq:clf}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{רגולריזציה}
+\label{ch:reg}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רגולריזציה״. המילה המנחה היא \en{ridge}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רגולריזציה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{ridge}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:reg}
+\mathcal{L}=\|y-Xw\|^2+\lambda\|w\|^2
+\end{equation}
+משוואה~\eqref{eq:reg} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{ridge} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:reg}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathcal{L}=\,\|y-Xw\|^2+\lambda\|w\|^2
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:reg}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{ridge}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{ridge} בפרק~\ref{ch:reg}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{ridge} דרך~\eqref{eq:reg}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{רשתות עצביות}
+\label{ch:nn}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רשתות עצביות״. המילה המנחה היא \en{backprop}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רשתות עצביות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{backprop}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:nn}
+\delta^{(l)}=(W^{(l+1)})^\top\delta^{(l+1)}\odot\sigma'(z^{(l)})
+\end{equation}
+משוואה~\eqref{eq:nn} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{backprop} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:nn}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\delta^{(l)}=\,(W^{(l+1)})^\top\delta^{(l+1)}\odot\sigma'(z^{(l)})
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:nn}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{backprop} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:nn} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{backprop} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{backprop} דרך~\eqref{eq:nn}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{הכללה}
+\label{ch:gen}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״הכללה״. המילה המנחה היא \en{VC}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — הכללה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{VC}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:gen}
+R(h)\le\hat R(h)+O\!\left(\sqrt{\frac{d}{n}}\right)
+\end{equation}
+משוואה~\eqref{eq:gen} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{VC} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:gen}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+R(h)\le\hat R(h)+O\!\left(\sqrt{\frac{d}{n}}\right)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:gen}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{VC}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{VC} בפרק~\ref{ch:gen}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{VC}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{VC}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{VC} דרך~\eqref{eq:gen}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{למידה לא מפוקחת}
+\label{ch:unsup}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״למידה לא מפוקחת״. המילה המנחה היא \en{kmeans}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — למידה לא מפוקחת}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{kmeans}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:unsup}
+J=\sum_{k=1}^{K}\sum_{x\in C_k}\|x-\mu_k\|^2
+\end{equation}
+משוואה~\eqref{eq:unsup} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{kmeans} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:unsup}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+J=\,\sum_{k=1}^{K}\sum_{x\in C_k}\|x-\mu_k\|^2
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:unsup}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:unsup} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{kmeans} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{kmeans} דרך~\eqref{eq:unsup}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{הטמעות}
+\label{ch:embed}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״הטמעות״. המילה המנחה היא \en{word2vec}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — הטמעות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{word2vec}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:embed}
+\max \sum_t \log p(w_{t+j}\mid w_t)
+\end{equation}
+משוואה~\eqref{eq:embed} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{word2vec} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:embed}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\max \sum_t \log p(w_{t+j}\mid w_t)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:embed}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{word2vec}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{word2vec} בפרק~\ref{ch:embed}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{word2vec} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{word2vec} דרך~\eqref{eq:embed}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — למידת מכונה}
+\label{ch:bridge-45}
+
+הפרקים הקודמים בחלק ״למידת מכונה״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{חישוב קוונטי}
+
+\chapter{הקיוביט}
+\label{ch:qubit}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״הקיוביט״. המילה המנחה היא \en{Bloch}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — הקיוביט}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{Bloch}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:qubit}
+\ket\psi=\cos\tfrac\theta2\ket0+e^{i\varphi}\sin\tfrac\theta2\ket1
+\end{equation}
+משוואה~\eqref{eq:qubit} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{Bloch} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:qubit}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\ket\psi=\,\cos\tfrac\theta2\ket0+e^{i\varphi}\sin\tfrac\theta2\ket1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:qubit}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{Bloch}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{Bloch} בפרק~\ref{ch:qubit}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{Bloch} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{Bloch}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{Bloch}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{Bloch} דרך~\eqref{eq:qubit}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{שערים בסיסיים}
+\label{ch:gates}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״שערים בסיסיים״. המילה המנחה היא \en{Hadamard}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — שערים בסיסיים}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{Hadamard}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:gates}
+H\ket0=\ket{+}
+\end{equation}
+משוואה~\eqref{eq:gates} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{Hadamard} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:gates}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+H\ket0=\,\ket{+}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:gates}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:gates} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{Hadamard} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{Hadamard} דרך~\eqref{eq:gates}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{שזירה}
+\label{ch:entangle}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״שזירה״. המילה המנחה היא \en{Bell}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — שזירה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{Bell}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:entangle}
+\ket{\Phi^+}=\tfrac1{\sqrt2}(\ket{00}+\ket{11})
+\end{equation}
+משוואה~\eqref{eq:entangle} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{Bell} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:entangle}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\ket{\Phi^+}=\,\tfrac1{\sqrt2}(\ket{00}+\ket{11})
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:entangle}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{Bell}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{Bell} בפרק~\ref{ch:entangle}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{Bell} דרך~\eqref{eq:entangle}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{אי־שכפול}
+\label{ch:noclone}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״אי־שכפול״. המילה המנחה היא \en{no-cloning}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — אי־שכפול}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{no-cloning}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:noclone}
+\nexists U:\ U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi
+\end{equation}
+משוואה~\eqref{eq:noclone} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{no-cloning} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:noclone}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\nexists U:\ U(\ket\psi\otimes\ket0)=\,\ket\psi\otimes\ket\psi
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:noclone}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{no-cloning} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:noclone} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{no-cloning} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{no-cloning} דרך~\eqref{eq:noclone}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{טלפורטציה}
+\label{ch:teleport}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״טלפורטציה״. המילה המנחה היא \en{EPR}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — טלפורטציה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{EPR}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:teleport}
+\ket\psi_B = X^{m_2}Z^{m_1}\ket\psi
+\end{equation}
+משוואה~\eqref{eq:teleport} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{EPR} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:teleport}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\ket\psi_B =\, X^{m_2}Z^{m_1}\ket\psi
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:teleport}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{EPR}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{EPR} בפרק~\ref{ch:teleport}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{EPR}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{EPR}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{EPR} דרך~\eqref{eq:teleport}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{אלגוריתם גרובר}
+\label{ch:grover}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״אלגוריתם גרובר״. המילה המנחה היא \en{oracle}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — אלגוריתם גרובר}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{oracle}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:grover}
+O(\sqrt N)\ \mathrm{queries}
+\end{equation}
+משוואה~\eqref{eq:grover} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{oracle} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:grover}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+O(\sqrt N)\ \mathrm{queries}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:grover}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:grover} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{oracle} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{oracle} דרך~\eqref{eq:grover}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{שור של שור}
+\label{ch:shor}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״שור של שור״. המילה המנחה היא \en{period}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — שור של שור}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{period}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:shor}
+a^r \equiv 1 \pmod N
+\end{equation}
+משוואה~\eqref{eq:shor} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{period} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:shor}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+a^r \equiv 1 \pmod N
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:shor}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{period}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{period} בפרק~\ref{ch:shor}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{period} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{period} דרך~\eqref{eq:shor}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{קודים לתיקון שגיאות}
+\label{ch:qec}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״קודים לתיקון שגיאות״. המילה המנחה היא \en{surface}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — קודים לתיקון שגיאות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{surface}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:qec}
+d_{\mathrm{code}} \ge 2t+1
+\end{equation}
+משוואה~\eqref{eq:qec} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{surface} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:qec}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+d_{\mathrm{code}} \ge 2t+1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:qec}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:qec} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{surface} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{surface} דרך~\eqref{eq:qec}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{VQE}
+\label{ch:vqe}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״VQE״. המילה המנחה היא \en{ansatz}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — VQE}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{ansatz}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:vqe}
+E(\theta)=\bra{\psi(\theta)}H\ket{\psi(\theta)}
+\end{equation}
+משוואה~\eqref{eq:vqe} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{ansatz} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:vqe}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+E(\theta)=\,\bra{\psi(\theta)}H\ket{\psi(\theta)}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:vqe}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{ansatz}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{ansatz} בפרק~\ref{ch:vqe}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{ansatz}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{ansatz}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{ansatz} דרך~\eqref{eq:vqe}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{רעש ומדידה}
+\label{ch:noise}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״רעש ומדידה״. המילה המנחה היא \en{depolarizing}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — רעש ומדידה}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{depolarizing}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:noise}
+\mathcal{E}(\rho)=(1-p)\rho+p\tfrac{I}{2}
+\end{equation}
+משוואה~\eqref{eq:noise} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{depolarizing} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:noise}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathcal{E}(\rho)=\,(1-p)\rho+p\tfrac{I}{2}
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:noise}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{depolarizing} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:noise} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{depolarizing} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{depolarizing} דרך~\eqref{eq:noise}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — חישוב קוונטי}
+\label{ch:bridge-55}
+
+הפרקים הקודמים בחלק ״חישוב קוונטי״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+\part{אבטחה וקריפטוגרפיה}
+
+\chapter{הצפנה סימטרית}
+\label{ch:sym}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״הצפנה סימטרית״. המילה המנחה היא \en{AES}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — הצפנה סימטרית}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{AES}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:sym}
+C = E_K(P)
+\end{equation}
+משוואה~\eqref{eq:sym} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{AES} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:sym}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+C =\, E_K(P)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:sym}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{AES}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{AES} בפרק~\ref{ch:sym}.}
+\end{tablebox}
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{AES} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{AES}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{AES}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{AES} דרך~\eqref{eq:sym}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{מפתח ציבורי}
+\label{ch:pubkey}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״מפתח ציבורי״. המילה המנחה היא \en{RSA}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — מפתח ציבורי}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{RSA}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:pubkey}
+c \equiv m^e \pmod n
+\end{equation}
+משוואה~\eqref{eq:pubkey} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{RSA} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:pubkey}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+c \equiv m^e \pmod n
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:pubkey}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:pubkey} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{RSA} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{RSA} דרך~\eqref{eq:pubkey}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{חתימות}
+\label{ch:sig}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״חתימות״. המילה המנחה היא \en{verify}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — חתימות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{verify}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:sig}
+\mathsf{Vrfy}(pk,\sigma,m)=1
+\end{equation}
+משוואה~\eqref{eq:sig} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{verify} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:sig}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathsf{Vrfy}(pk,\sigma,m)=\,1
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:sig}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{verify}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{verify} בפרק~\ref{ch:sig}.}
+\end{tablebox}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{verify} דרך~\eqref{eq:sig}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{גיבוב קריפטוגרפי}
+\label{ch:hashc}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״גיבוב קריפטוגרפי״. המילה המנחה היא \en{SHA}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — גיבוב קריפטוגרפי}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{SHA}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:hashc}
+H:\{0,1\}^*\to\{0,1\}^n
+\end{equation}
+משוואה~\eqref{eq:hashc} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{SHA} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:hashc}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+H:\{0,1\}^*\to\{0,1\}^n
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:hashc}.
+
+\begin{exbox}[frametitle={דוגמה — רצף מובחן}]
+הרצף מדגים לחץ על \en{SHA} (RAW on \code{\$t0}; load-use needs a stall):
+\begin{asmblock}
+\begin{lstlisting}[style=asm]
+add  $t0, $s0, $s1
+sub  $t2, $t0, $s2
+lw   $t3, 0($t0)
+addi $t4, $t3, 4
+\end{lstlisting}
+\end{asmblock}
+\end{exbox}
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:hashc} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{SHA} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{SHA} דרך~\eqref{eq:hashc}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{פרוטוקולי אימות}
+\label{ch:auth}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״פרוטוקולי אימות״. המילה המנחה היא \en{challenge}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — פרוטוקולי אימות}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{challenge}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:auth}
+\mathsf{Adv} \le \varepsilon
+\end{equation}
+משוואה~\eqref{eq:auth} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{challenge} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:auth}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathsf{Adv} \le \varepsilon
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:auth}.
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{מצב} & \textbf{מדד} & \textbf{השפעה על \en{challenge}}\\
+\midrule
+אידיאלי & $1.0\times$ & חסם תחתון\\
+טיפוסי & $1.2$–$1.8\times$ & כולל תלויות\\
+גרוע & $\ge 2\times$ & דורש תיקון מבני\\
+\bottomrule
+\end{tabular}
+\tabcap{סדרי גודל ל־\en{challenge} בפרק~\ref{ch:auth}.}
+\end{tablebox}
+
+\begin{tikzpic}
+\begin{tikzpicture}[font=\small,node distance=7mm,>={Latex[length=2mm]},
+  box/.style={draw,thick,rounded corners,align=center,minimum width=2.2cm,minimum height=1.0cm,fill=cBlueBg}]
+  \node[box] (a) {\en{In}};
+  \node[box,right=of a] (b) {\en{challe}};
+  \node[box,right=of b,fill=cGreenBg] (c) {\en{Out}};
+  \draw[->,thick] (a) -- (b);
+  \draw[->,thick] (b) -- (c);
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — זרימה סכמטית ל־\en{challenge}\end{center}
+
+\begin{notebox}[frametitle={הערה}]
+הסימון אחיד לאורך הפרק: משתנים לטיניים ב־\en{math}, מזהים ב־\code{code}, והסבר בעברית מחוץ לנוסחה.
+\end{notebox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{challenge} דרך~\eqref{eq:auth}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+\chapter{ערוץ מאובטח}
+\label{ch:securech}
+
+הפרק הזה סוגר יחידה אחת סביב הרעיון המרכזי ״ערוץ מאובטח״. המילה המנחה היא \en{AEAD}; כל הנוסחאות והדוגמאות משרתות אותו.
+
+\begin{defbox}[frametitle={הגדרה — ערוץ מאובטח}]
+מגדירים את המושג דרך מדד תפעולי: הקשר בין הקלטים לבין התוצאה הנמדדת. בסימון מקוצר: המדד המרכזי הוא \en{AEAD}.
+\end{defbox}
+
+\begin{equation}
+\label{eq:securech}
+\mathsf{Enc}_{k}(nonce, aad, pt)
+\end{equation}
+משוואה~\eqref{eq:securech} היא עמוד השדרה של הפרק. האינטואיציה: כל שיפור ב־\en{AEAD} חייב להשתקף בנוסחה הזו, אחרת הוא שיפור מדומה.
+
+\begin{keybox}[frametitle={רעיון מפתח}]
+אל תמדוד רכיב בבידוד. מדוד את השפעתו על המדד הגלובלי דרך~\eqref{eq:securech}. זו המשמעת שמבדילה בין אופטימיזציה אמיתית לבין מיקרו־כוונון חסר תועלת.
+\end{keybox}
+
+הצורה המורחבת שמופיעה בתרגילים:
+\[
+\mathsf{Enc}_{k}(nonce, aad, pt)
+\]
+בפועל מפרקים את הביטוי לגורמים שניתן למדוד: זמן, הסתברות, רוחב, או מספר פעולות. כל גורם מקבל ניסוי נפרד, ואז מרכיבים חזרה לפי~\eqref{eq:securech}.
+
+\begin{warnbox}[frametitle={מלכודת נפוצה}]
+לשפר רכיב מקומי בלי לבדוק את~\eqref{eq:securech} יוצר אופטימיזציה מדומה. ודא שהשיפור ב־\en{AEAD} שורד גם בעומס אמיתי, לא רק במיקרו־benchmark.
+\end{warnbox}
+
+סיכום תפעולי:
+\begin{enumerate}
+\item[(\textbf{א})] זהה את המדד — כאן \en{AEAD} דרך~\eqref{eq:securech}.
+\item[(\textbf{ב})] פרק לגורמים מדידים וודא יחידות.
+\item[(\textbf{ג})] שפר גורם אחד בכל פעם ומדוד שוב.
+\end{enumerate}
+
+
+\chapter{חיבור הפרק — אבטחה וקריפטוגרפיה}
+\label{ch:bridge-61}
+
+הפרקים הקודמים בחלק ״אבטחה וקריפטוגרפיה״ חולקים מבנה זהה: מדד $\leftarrow$ נוסחה $\leftarrow$ מדידה.
+הטעות הנפוצה היא לאסוף עובדות במקום לשלוט במדד.
+\begin{keybox}[frametitle={התמונה הגדולה של החלק}]
+חזור על כל משוואה ממוספרת בחלק, וכתוב במשפט אחד איזה ניסוי מאמת אותה.
+אם אין ניסוי — הנוסחה עדיין דקורטיבית.
+\end{keybox}
+
+
+\chapter{מעגל בל כתבנית עבודה}
+\label{ch:bell-template}
+
+מצב בל הוא תבנית העבודה לשזירה דו־קיוביטית:
+\begin{equation}
+\label{eq:bell-template}
+\ket{\Phi^+} = \tfrac1{\sqrt2}(\ket{00}+\ket{11})
+\end{equation}
+
+\begin{qcirc}
+\begin{quantikz}
+\lstick{$\ket0$} & \gate{H} & \ctrl{1} & \meter{} \\
+\lstick{$\ket0$} & \qw & \targ{} & \meter{}
+\end{quantikz}
+\end{qcirc}
+\begin{center}\small איור — הכנת $\ket{\Phi^+}$ ומדידה\end{center}
+
+\begin{thmbox}[frametitle={משפט — אי־שכפול}]
+לא קיים $U$ אוניטרי כך ש־$U(\ket\psi\otimes\ket0)=\ket\psi\otimes\ket\psi$ לכל $\ket\psi$.
+\end{thmbox}
+
+\noindent\textbf{הוכחה (בקצרה).}
+ נניח שקיים. אז $\braket{\psi}{\phi}=\braket{\psi}{\phi}^2$,
+ולכן $\braket{\psi}{\phi}\in\{0,1\}$ — סתירה לליניאריות. $\qquad\blacksquare$
+
+
+\chapter{עקומות ביצוע — קריאה נכונה}
+\label{ch:curves}
+
+גרף אינו קישוט: הוא מדידה. הציר האופקי הוא פרמטר תכנון; האנכי הוא המדד.
+
+\begin{tikzpic}
+\begin{tikzpicture}
+\begin{axis}[
+  width=11cm, height=6cm,
+  xlabel={גודל (יח')},
+  ylabel={עלות / שגיאה},
+  legend style={at={(0.97,0.97)},anchor=north east,font=\small},
+  grid=major, grid style={gray!20},
+]
+\addplot[thick,mark=*] coordinates {(1,18)(2,14)(4,10)(8,7)(16,5)(32,4)};
+\addlegendentry{בסיס}
+\addplot[thick,dashed,mark=square*] coordinates {(1,14)(2,10)(4,7)(8,4.5)(16,3)(32,2.2)};
+\addlegendentry{משופר}
+\end{axis}
+\end{tikzpicture}
+\end{tikzpic}
+\begin{center}\small איור — ירידת שגיאה עם גודל המשאב\end{center}
+
+\begin{notebox}[frametitle={איך קוראים את הגרף}]
+חפש נקודת שבת: מעבר אליה העלות עולה מהר והתועלת יורדת.
+זו נקודת התכנון, לא קצה העקומה.
+\end{notebox}
+
+\part{תרגילים פתורים}
+
+\chapter{תרגילים מסכמים}
+\label{ch:ex}
+
+
+\begin{exbox}[frametitle={תרגיל 1 — \en{CPI}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:pipeline} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 1.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 1},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:pipeline} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 2 — \en{bypass}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:forward} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 2.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 2},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:forward} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 3 — \en{ROB}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:ooo} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 3.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 3},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:ooo} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 4 — \en{inclusive}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:l2} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 4.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 4},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:l2} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 5 — \en{VPN}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:tlb} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 5.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 5},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:tlb} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 6 — \en{bandwidth}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:membw} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 6.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 6},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:membw} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 7 — \en{mutex}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:sync} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 7.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 7},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:sync} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 8 — \en{DMA}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:io} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 8.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 8},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:io} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 9 — \en{OSI}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:layers} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 9.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 9},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:layers} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 10 — \en{latency}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:qos} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 10.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 10},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:qos} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 11 — \en{BigO}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:complexity} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 11.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 11},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:complexity} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 12 — \en{opt}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:dp} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 12.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 12},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:dp} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 13 — \en{maxflow}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:flow} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 13.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 13},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:flow} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 14 — \en{logistic}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:clf} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 14.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 14},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:clf} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 15 — \en{VC}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:gen} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 15.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 15},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:gen} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 16 — \en{Bloch}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:qubit} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 16.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 16},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:qubit} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 17 — \en{no-cloning}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:noclone} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 17.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 17},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:noclone} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 18 — \en{period}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:shor} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 18.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 18},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:shor} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 19 — \en{depolarizing}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:noise} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 19.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 19},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:noise} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 20 — \en{verify}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:sig} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 20.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 20},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:sig} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\begin{exbox}[frametitle={תרגיל 21 — \en{AEAD}}]
+\textbf{(א)} חשב את ערך המדד לפי~\eqref{eq:securech} עבור המספרים שבטבלה למטה.\\[4pt]
+\textbf{(ב)} שנה פרמטר אחד ב־$10\%$ והסבר את כיוון השינוי.\\[4pt]
+\textbf{(ג)} ציין מתי הקירוב נשבר.
+\end{exbox}
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{פרמטר} & \textbf{ערך א} & \textbf{ערך ב}\\
+\midrule
+$a$ & $1.0$ & $1.2$\\
+$b$ & $0.05$ & $0.02$\\
+$c$ & $80$ & $100$\\
+\bottomrule
+\end{tabular}
+\tabcap{נתונים לתרגיל 21.}
+\end{tablebox}
+
+\begin{keybox}[frametitle={פתרון 21},nobreak=true]
+\textbf{פתרון (א).}\\
+מצבים לתוך~\eqref{eq:securech} ומקבלים ערך מספרי יחיד.\\[3pt]
+\textbf{פתרון (ב).}\\
+נגזרת/רגישות לפי הגורם ששינית — כיוון השינוי חייב להתאים לנוסחה.\\[3pt]
+\textbf{פתרון (ג).}\\
+הקירוב נשבר כשיש תלות סמויה בין גורמים שנחשבו בלתי־תלויים.\\[3pt]
+\textbf{לקח.} מדוד דרך הנוסחה, לא דרך תחושת בטן.
+\end{keybox}
+
+
+\chapter{נספח — זהויות וקיצורים}
+\label{ch:appendix}
+
+\[
+T = \mathrm{IC}\times\mathrm{CPI}\times T_{\mathrm{clk}},\qquad
+T_{\mathrm{avg}}=T_{\mathrm{hit}}+r_{\mathrm{miss}}T_{\mathrm{miss}}
+\]
+\[
+HXH=Z,\qquad HZH=X,\qquad H^2=I
+\]
+\[
+\ket{\Phi^\pm}=\tfrac1{\sqrt2}(\ket{00}\pm\ket{11}),\qquad
+\ket{\Psi^\pm}=\tfrac1{\sqrt2}(\ket{01}\pm\ket{10})
+\]
+
+\begin{tablebox}\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{קיצור} & \textbf{משמעות}\\
+\midrule
+\en{CPI} & מחזורים להוראה\\
+\en{AMAT} & זמן גישה ממוצע לזיכרון\\
+\en{IPC} & הוראות למחזור\\
+\en{TLB} & מטמון תרגום כתובות\\
+\en{VQE} & אומדן ערך עצמי וריאציוני\\
+\bottomrule
+\end{tabular}
+\tabcap{קיצורים מרכזיים.}
+\end{tablebox}
+
+\noindent סוף הלקט. המסמך נועד לתרגול הצינור בעומס אמיתי:
+מאות משוואות־עזר, עשרות קופסאות, טבלאות, קטעי קוד ותרגילים — בלי tofu ובלי היפוכי כיוון.
+
+\end{document}
