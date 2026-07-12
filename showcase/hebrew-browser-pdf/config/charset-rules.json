@@ -1,0 +1,12 @@
+{
+  "_comment": "Charset gate rules (data for scripts/check_charset.mjs). Each rule: a set of hex codepoint ranges [lo,hi] inclusive, plus a human reason. First match wins. Allow-list is implicit: anything not matched passes (font-reality-based).",
+  "rules": [
+    { "id": "arabic",       "ranges": [["0600","06FF"]], "reason": "Arabic (confusable with Hebrew; almost never intended)" },
+    { "id": "cyrillic",     "ranges": [["0400","04FF"]], "reason": "Cyrillic (look-alike letters)" },
+    { "id": "cantillation", "ranges": [["0591","05AF"],["05BD","05BD"],["05C5","05C5"]], "reason": "Hebrew cantillation/te’amim (no glyph in Frank Ruhl → tofu)" },
+    { "id": "bidi-embed",   "ranges": [["202A","202E"]], "reason": "bidi embedding/override control (use CSS unicode-bidi / <bdi> instead)" },
+    { "id": "bidi-isolate", "ranges": [["2066","2069"]], "reason": "bidi isolate control (prefer <bdi>/dir attribute)" },
+    { "id": "zero-width",   "ranges": [["200B","200D"]], "reason": "zero-width character (often accidental)" },
+    { "id": "bom",          "ranges": [["FEFF","FEFF"]], "reason": "BOM / zero-width no-break space" }
+  ]
+}

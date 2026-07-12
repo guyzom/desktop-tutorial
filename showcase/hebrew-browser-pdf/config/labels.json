@@ -1,0 +1,5 @@
+{
+  "_comment": "UI / i18n labels (data). The engine and generated CSS read these instead of hardcoding Hebrew strings.",
+  "tableOfContents": "תוכן העניינים",
+  "tableCaptionPrefix": "טבלה "
+}

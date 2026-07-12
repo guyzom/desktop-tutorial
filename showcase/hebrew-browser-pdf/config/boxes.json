@@ -1,0 +1,43 @@
+{
+  "_comment": "The semantic boxes (data). Two independent axes: ROLE = what the content is; WEIGHT = how much visual salience it earns. Since v0.9.7 the box is a BAR-LESS filled card (user study on a real 83-page build: the side bar read as clutter): the FILL carries the weight ladder — one ink-blue family whose fill weakens as weight drops (W1 strongest -> W5 near-neutral); 'warn' (W4) is the ONE warm fill because a warning's job is to interrupt reading; W5 is neutral gray. Title color still names the role. gen-css.mjs emits .box-<role> background + title color; base.css defines per-weight structure (radius, title size). Budget unchanged: prose is default, ~1 box/chapter, box share < 10%. Fields: weight, title=bold title TEXT color, body=full card fill.",
+  "result": {
+    "weight": 1,
+    "title": "#2c4763",
+    "body": "#e7eef5"
+  },
+  "key": {
+    "weight": 2,
+    "title": "#34506b",
+    "body": "#edf2f7"
+  },
+  "def": {
+    "weight": 3,
+    "title": "#46607a",
+    "body": "#f2f5f8"
+  },
+  "thm": {
+    "weight": 3,
+    "title": "#46607a",
+    "body": "#f2f5f8"
+  },
+  "steps": {
+    "weight": 3,
+    "title": "#46607a",
+    "body": "#f2f5f8"
+  },
+  "warn": {
+    "weight": 4,
+    "title": "#86513f",
+    "body": "#f8f1ea"
+  },
+  "note": {
+    "weight": 5,
+    "title": "#5b626b",
+    "body": "#f4f5f6"
+  },
+  "ex": {
+    "weight": 5,
+    "title": "#5b626b",
+    "body": "#f4f5f6"
+  }
+}

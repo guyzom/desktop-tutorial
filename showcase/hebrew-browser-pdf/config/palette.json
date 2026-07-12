@@ -1,0 +1,14 @@
+{
+  "_comment": "Diagram/chart colors (data for src/diagram.mjs and hand-authored inline SVGs). v0.6.1: unified with the box system's ink-blue family + single warm accent, so diagrams are hermetic with prose (no arbitrary saturated hues). 'ink' names the roles a schematic vector/annotation needs; use these tokens in hand-drawn SVGs instead of raw hex. chartSeries follows the same discipline: one ink-blue ramp for magnitude, the warm accent only where a series genuinely means 'caution/other'.",
+  "ink": {
+    "primary": "#2c4763",
+    "secondary": "#7e97ae",
+    "annotate": "#86513f",
+    "axis": "#4a4a4a",
+    "fillPale": "#eef3f8",
+    "fillPaleAlt": "#cddbe9"
+  },
+  "chartSeries": ["#2c4763", "#7e97ae", "#a6b7c6", "#86513f"],
+  "blockNodeFill": "#eef3f8",
+  "blockNodeStroke": "#5f7e9c"
+}

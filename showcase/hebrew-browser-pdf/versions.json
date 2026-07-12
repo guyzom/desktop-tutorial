@@ -1,0 +1,30 @@
+{
+  "chromium": {
+    "build": "1194",
+    "via": "playwright@1.56.1",
+    "path": "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+  },
+  "npm": {
+    "playwright": "1.56.1",
+    "mathjax-full": "3.2.2",
+    "pagedjs": "0.4.3",
+    "@fontsource/frank-ruhl-libre": "5.2.5",
+    "@fontsource/jetbrains-mono": "5.2.6"
+  },
+  "python": {
+    "pymupdf": "1.28.0",
+    "pdfminer.six": "20260107",
+    "pikepdf": "10.9.1"
+  },
+  "fonts_sha256": {
+    "frank-ruhl-libre-hebrew-400-normal.woff2": "f250fa14577e5529fd11cd1b52020bbf022c0c85adf2beea4bfbcfcfcbc3871f",
+    "frank-ruhl-libre-hebrew-700-normal.woff2": "b71dd16e406e472addd103441c348d4d354939cd719c486851760219f3fb8649",
+    "frank-ruhl-libre-latin-400-normal.woff2": "3cfeb2d88676c34e809478975c1cd25da6b5869867ae86c80f822b9a4ce7c329",
+    "frank-ruhl-libre-latin-700-normal.woff2": "ae270abb9fe7f1f608c3dfe7f8e280566f0d4c1fcd0af1ff8289d7fc22c9486d",
+    "jetbrains-mono-latin-400-normal.woff2": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb",
+    "jetbrains-mono-latin-700-normal.woff2": "d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8"
+  },
+  "vendor_sha256": {
+    "paged.polyfill.js": "f59f361802416c770d549a647958649af2cf6601999924bc00e4f507dad5269f"
+  }
+}

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/css/base.css"></head>
+<body>
+<!-- Known-bad fixture for scripts/check_fuzz.py's reading-order oracle. The case
+     DECLARES island A ("Firstword") as first in logical order, but AUTHORS it
+     second, so with .en isolation active it renders to the LEFT of island B
+     ("Secondword") — the reversed reading order the oracle must catch. A future
+     Chromium that genuinely reordered a correctly-authored corpus would trip the
+     same way. This fixture must FIRE; the generated corpus must stay SILENT. -->
+<p class="fz" data-a="Firstword" data-b="Secondword" data-atype="en" data-btype="en" data-sep="comma" data-ctx="p">
+  קדם <span class="en">Secondword</span>, <span class="en">Firstword</span> בתר
+</p>
+</body></html>

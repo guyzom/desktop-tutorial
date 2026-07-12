@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../assets/css/base.css">
+<style>
+  @page { size: A4; margin: 16mm; }
+  h2 { font-size: 14pt; margin: 14px 0 6px; }
+  .fig { margin: 10px 0 18px; }
+  .cap { text-align:center; font-size:10pt; color:#333; margin-top:4px; }
+  svg { display:block; margin:0 auto; }
+  .box { fill:#eef4fb; stroke:#5b7fb0; stroke-width:1.5; rx:6; }
+  .boxg { fill:#eafaef; stroke:#4a9d63; stroke-width:1.5; }
+  .wire { stroke:#222; stroke-width:1.5; fill:none; }
+  .gate { fill:#fff; stroke:#222; stroke-width:1.5; }
+  /* SVG text: force LTR isolation for Latin, RTL for Hebrew */
+  text { font-family:'Frank Ruhl Libre',serif; font-size:15px; }
+  text.en { direction:ltr; unicode-bidi:isolate; }
+  text.h  { direction:rtl; unicode-bidi:isolate; }
+</style>
+</head>
+<body>
+
+<h2>איור 1 — דיאגרמת בלוקים (גישה A: <span class="en">SVG &lt;text&gt;</span> עם כיווניות)</h2>
+<div class="fig">
+<svg width="520" height="180" viewBox="0 0 520 180">
+  <!-- Hebrew-only node -->
+  <rect class="box" x="20" y="60" width="120" height="56" rx="6"/>
+  <text class="h" x="80" y="93" text-anchor="middle">זיכרון</text>
+  <!-- Mixed node: Hebrew + isolated Latin paren -->
+  <rect class="box" x="200" y="60" width="120" height="56" rx="6"/>
+  <text x="260" y="93" text-anchor="middle" direction="rtl"><tspan class="h">מעבד </tspan><tspan class="en">(CPU)</tspan></text>
+  <!-- Latin-only node -->
+  <rect class="box" x="380" y="60" width="120" height="56" rx="6"/>
+  <text class="en" x="440" y="93" text-anchor="middle">Datapath</text>
+  <!-- arrows (RTL reading: memory <- cpu <- datapath) -->
+  <path class="wire" d="M200,88 L140,88" marker-end="url(#a)"/>
+  <path class="wire" d="M380,88 L320,88" marker-end="url(#a)"/>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#222"/></marker></defs>
+</svg>
+<div class="cap">צומת עברי, צומת מעורב <span class="en">מעבד (CPU)</span>, וצומת לטיני — הפרנתזות והלטינית אמורות לקרוא נכון</div>
+</div>
+
+<h2>איור 2 — אותו דבר (גישה B: <span class="en">&lt;foreignObject&gt;</span> עם <span class="en">HTML</span> bidi)</h2>
+<div class="fig">
+<svg width="520" height="180" viewBox="0 0 520 180">
+  <rect class="box" x="20" y="60" width="120" height="56" rx="6"/>
+  <foreignObject x="20" y="72" width="120" height="32">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="text-align:center;font:15px 'Frank Ruhl Libre';direction:rtl">זיכרון</div>
+  </foreignObject>
+  <rect class="box" x="200" y="60" width="120" height="56" rx="6"/>
+  <foreignObject x="200" y="72" width="120" height="32">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="text-align:center;font:15px 'Frank Ruhl Libre';direction:rtl">מעבד <bdi dir="ltr">(CPU)</bdi></div>
+  </foreignObject>
+  <rect class="box" x="380" y="60" width="120" height="56" rx="6"/>
+  <foreignObject x="380" y="72" width="120" height="32">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="text-align:center;font:15px 'Frank Ruhl Libre';direction:ltr">Datapath</div>
+  </foreignObject>
+  <path class="wire" d="M200,88 L140,88" marker-end="url(#b)"/>
+  <path class="wire" d="M380,88 L320,88" marker-end="url(#b)"/>
+  <defs><marker id="b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#222"/></marker></defs>
+</svg>
+<div class="cap">גישת <span class="en">foreignObject</span>: כל תווית מקבלת bidi מלא של <span class="en">HTML</span></div>
+</div>
+
+<h2>איור 3 — מעגל קוונטי (זוג בל) עם תווית עברית+מתמטיקה</h2>
+<div class="fig">
+<svg width="420" height="150" viewBox="0 0 420 150">
+  <!-- two wires -->
+  <line class="wire" x1="120" y1="45" x2="400" y2="45"/>
+  <line class="wire" x1="120" y1="105" x2="400" y2="105"/>
+  <!-- lstick labels (ket 0) via foreignObject -->
+  <foreignObject x="70" y="30" width="46" height="30">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="direction:ltr;font:15px serif;text-align:right">|0⟩</div>
+  </foreignObject>
+  <foreignObject x="70" y="90" width="46" height="30">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="direction:ltr;font:15px serif;text-align:right">|0⟩</div>
+  </foreignObject>
+  <!-- H gate -->
+  <rect class="gate" x="150" y="28" width="34" height="34"/>
+  <text class="en" x="167" y="51" text-anchor="middle">H</text>
+  <!-- CNOT: control dot + target -->
+  <circle cx="240" cy="45" r="5" fill="#222"/>
+  <line class="wire" x1="240" y1="45" x2="240" y2="105"/>
+  <circle cx="240" cy="105" r="12" fill="none" stroke="#222" stroke-width="1.5"/>
+  <line class="wire" x1="240" y1="93" x2="240" y2="117"/>
+  <line class="wire" x1="228" y1="105" x2="252" y2="105"/>
+  <!-- meter gates -->
+  <rect class="gate" x="330" y="28" width="40" height="34"/>
+  <path class="wire" d="M338,52 A12,12 0 0,1 362,52"/>
+  <line class="wire" x1="350" y1="52" x2="360" y2="40"/>
+  <rect class="gate" x="330" y="88" width="40" height="34"/>
+  <path class="wire" d="M338,112 A12,12 0 0,1 362,112"/>
+  <line class="wire" x1="350" y1="112" x2="360" y2="100"/>
+  <!-- Hebrew caption label to the left (RTL) -->
+  <foreignObject x="120" y="122" width="280" height="26">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="direction:rtl;font:13px 'Frank Ruhl Libre';text-align:center">מעגל יצירת מצב בל <bdi dir="ltr">(H → CNOT)</bdi></div>
+  </foreignObject>
+</svg>
+<div class="cap">שער <span class="en">H</span>, ואז <span class="en">CNOT</span>, ואז מדידה — תוויות לטיניות ומתמטיקה חייבות לקרוא קדימה</div>
+</div>
+
+</body>
+</html>

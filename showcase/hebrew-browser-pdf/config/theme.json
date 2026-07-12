@@ -1,0 +1,17 @@
+{
+  "_comment": "Design tokens (data). gen-css.mjs emits these as :root CSS variables; base.css/document.css consume them via var(). Change here to re-theme.",
+  "font-body": "'Frank Ruhl Libre', serif",
+  "font-mono": "'JetBrains Mono', monospace",
+  "body-size": "12pt",
+  "body-leading": "1.6",
+  "ink": "#111",
+  "accent": "#2f6fb0",
+  "frame": "#111111",
+  "rule": "#111111",
+  "listing-bg": "#f5f7fa",
+  "chip-bg": "transparent",
+  "chip-border": "#111111",
+  "listing-kw": "#33608d",
+  "listing-cm": "#74808c",
+  "listing-st": "#96632e"
+}

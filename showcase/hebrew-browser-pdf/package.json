@@ -1,0 +1,20 @@
+{
+  "name": "hebrew-browser-pdf",
+  "version": "0.9.9",
+  "private": true,
+  "description": "Browser-native (Chromium print-to-PDF + MathJax) Hebrew academic PDF pipeline",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "render": "node src/render.mjs"
+  },
+  "dependencies": {
+    "@fontsource/frank-ruhl-libre": "5.2.5",
+    "@fontsource/jetbrains-mono": "5.2.6",
+    "mathjax-full": "3.2.2",
+    "pagedjs": "0.4.3",
+    "playwright": "1.56.1"
+  }
+}
