@@ -375,6 +375,7 @@
     progress: 0,
     lane: 1,
     laneX: 0,
+    laneXTarget: 0,
     invulnUntil: 0,
     shieldUntil: 0,
     pizzaMult: 1,
@@ -446,6 +447,7 @@
     game.progress = 0;
     game.lane = 1;
     game.laneX = LANES_X[1];
+    game.laneXTarget = LANES_X[1];
     game.invulnUntil = 0;
     game.shieldUntil = 0;
     game.pizzaMult = 1;
@@ -463,12 +465,15 @@
     clearGroup(entityRoot);
     game.entities = [];
     setShowcaseVisible(false);
+    showcaseRoot.visible = false;
+    clearGroup(showcaseRoot);
+    showcaseTurtles = [];
     setWorldTheme(stg.world);
     worldRoot.position.z = 0;
     buildSewer(game.distance + 40);
     spawnPlayerMesh(save.turtleId);
     playerMesh.position.set(game.laneX, 0, 0);
-    playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
+    playerMesh.rotation.y = 0;
 
     game.boss = null;
     game.bossHp = 0;
@@ -487,7 +492,8 @@
     updateHud();
     showScreen("game");
     $("drag-hint").hidden = false;
-    setTimeout(() => { $("drag-hint").hidden = true; }, 2500);
+    $("drag-hint").textContent = "הזיזו ימינה ושמאלה!";
+    setTimeout(() => { $("drag-hint").hidden = true; }, 2800);
     const banner = $("stage-banner");
     banner.hidden = false;
     banner.textContent = stg.name;
@@ -599,40 +605,112 @@
     showScreen("clear");
   }
 
-  // ---------- Input ----------
+  // ---------- Input (horizontal drag on dedicated touch-pad) ----------
+  const touchPad = $("touch-pad");
   let dragging = false;
-  function setLaneFromClientY(clientY) {
-    const y = clientY / window.innerHeight;
-    // top of screen = lane 0, bottom = lane 2
-    let lane = 1;
-    if (y < 0.38) lane = 0;
-    else if (y > 0.62) lane = 2;
-    game.lane = lane;
-  }
-  function onDown(e) {
-    if (!game.running || game.paused) return;
-    // ignore UI chrome taps
-    const t = e.target;
-    if (t && t.closest && t.closest("button, .overlay-card, .hud-btn, .super-btn")) return;
-    dragging = true;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    setLaneFromClientY(y);
-  }
-  function onMove(e) {
-    if (!dragging || !game.running || game.paused) return;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    setLaneFromClientY(y);
-    if (e.cancelable) e.preventDefault();
-  }
-  function onUp() { dragging = false; }
+  let activePointerId = null;
+  let dragStartX = 0;
+  let dragStartLane = 1;
+  let lastClientX = 0;
 
-  // Bind to window so UI overlays cannot block lane dragging
-  window.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointercancel", onUp);
-  document.addEventListener("touchmove", (e) => {
-    if (dragging && game.running && !game.paused) e.preventDefault();
+  function clientToLaneX(clientX) {
+    const rect = touchPad.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    // 0 at left edge → 1 at right edge (screen coords, always LTR)
+    let nx = (clientX - rect.left) / w;
+    nx = Math.min(1, Math.max(0, nx));
+    // Map to world X: left screen = left lane (-2.2), right = +2.2
+    return (nx - 0.5) * 2 * 2.4; // ≈ -2.4 .. 2.4
+  }
+
+  function applyFingerX(clientX) {
+    lastClientX = clientX;
+    const x = clientToLaneX(clientX);
+    game.laneXTarget = Math.min(LANES_X[2], Math.max(LANES_X[0], x));
+    // discrete lane for spawns/logic
+    if (game.laneXTarget < (LANES_X[0] + LANES_X[1]) / 2) game.lane = 0;
+    else if (game.laneXTarget > (LANES_X[1] + LANES_X[2]) / 2) game.lane = 2;
+    else game.lane = 1;
+    touchPad.dataset.lane = String(game.lane);
+    touchPad.dataset.x = game.laneXTarget.toFixed(2);
+  }
+
+  function onPadDown(e) {
+    if (!game.running || game.paused) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragging = true;
+    activePointerId = e.pointerId;
+    dragStartX = e.clientX;
+    dragStartLane = game.lane;
+    try { touchPad.setPointerCapture(e.pointerId); } catch (_) {}
+    applyFingerX(e.clientX);
+    e.preventDefault();
+  }
+
+  function onPadMove(e) {
+    if (!dragging || !game.running || game.paused) return;
+    if (activePointerId != null && e.pointerId !== activePointerId) return;
+    applyFingerX(e.clientX);
+    // swipe assist: quick horizontal flick jumps a lane
+    const dx = e.clientX - dragStartX;
+    if (Math.abs(dx) > 70) {
+      if (dx > 0 && dragStartLane < 2) {
+        game.lane = Math.min(2, dragStartLane + 1);
+        game.laneXTarget = LANES_X[game.lane];
+      } else if (dx < 0 && dragStartLane > 0) {
+        game.lane = Math.max(0, dragStartLane - 1);
+        game.laneXTarget = LANES_X[game.lane];
+      }
+      dragStartX = e.clientX;
+      dragStartLane = game.lane;
+    }
+    e.preventDefault();
+  }
+
+  function onPadUp(e) {
+    if (activePointerId != null && e.pointerId !== activePointerId) return;
+    dragging = false;
+    activePointerId = null;
+    // snap to nearest lane on release (easier for age 4)
+    let best = 1, bestD = Infinity;
+    for (let i = 0; i < 3; i++) {
+      const d = Math.abs(LANES_X[i] - game.laneXTarget);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    game.lane = best;
+    game.laneXTarget = LANES_X[best];
+    try { if (e.pointerId != null) touchPad.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  touchPad.addEventListener("pointerdown", onPadDown, { passive: false });
+  touchPad.addEventListener("pointermove", onPadMove, { passive: false });
+  touchPad.addEventListener("pointerup", onPadUp, { passive: false });
+  touchPad.addEventListener("pointercancel", onPadUp, { passive: false });
+  touchPad.addEventListener("lostpointercapture", () => { dragging = false; activePointerId = null; });
+
+  // Extra safety for older iOS Safari touch events
+  touchPad.addEventListener("touchstart", (e) => {
+    if (!game.running || game.paused) return;
+    if (!e.touches || !e.touches.length) return;
+    dragging = true;
+    applyFingerX(e.touches[0].clientX);
+    e.preventDefault();
+  }, { passive: false });
+  touchPad.addEventListener("touchmove", (e) => {
+    if (!dragging || !game.running || game.paused) return;
+    if (!e.touches || !e.touches.length) return;
+    applyFingerX(e.touches[0].clientX);
+    e.preventDefault();
+  }, { passive: false });
+  touchPad.addEventListener("touchend", () => {
+    dragging = false;
+    let best = 1, bestD = Infinity;
+    for (let i = 0; i < 3; i++) {
+      const d = Math.abs(LANES_X[i] - game.laneXTarget);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    game.lane = best;
+    game.laneXTarget = LANES_X[best];
   }, { passive: false });
 
   // ---------- UI builders ----------
@@ -736,19 +814,20 @@
     });
 
     if (playerMesh) {
-      const targetX = LANES_X[game.lane];
+      // follow finger target (smooth), not only discrete lane snaps
+      const targetX = (typeof game.laneXTarget === "number") ? game.laneXTarget : LANES_X[game.lane];
       const dxLane = targetX - game.laneX;
-      game.laneX += dxLane * Math.min(1, dt * 12);
+      game.laneX += dxLane * Math.min(1, dt * 14);
       playerMesh.position.x = game.laneX;
       playerMesh.position.z = 0;
       // lean into lane change + run cycle
-      const lean = THREE.MathUtils.clamp(dxLane * 0.25, -0.45, 0.45);
+      const lean = THREE.MathUtils.clamp(dxLane * 0.2, -0.4, 0.4);
       playerMesh.rotation.z = lean;
-      playerMesh.rotation.y = Math.PI; // face down the tunnel (-Z)
+      playerMesh.rotation.y = 0; // face into tunnel (-Z)
       M.animateTurtleRun(playerMesh, t);
       if (prevLane !== game.lane) {
         prevLane = game.lane;
-        camShake = 0.18;
+        camShake = 0.12;
       }
     }
 
