@@ -363,7 +363,7 @@
     combo: 0, bestCombo: 0,
     invulnUntil: 0, shieldUntil: 0, pizzaMult: 1,
     ents: [], spawnE: 0, spawnP: 0,
-    boss: null, bossHp: 0, bossMax: 0, bossHitAt: 0, bossActive: false,
+    boss: null, bossHp: 0, bossMax: 0, bossHitAt: 0, bossActive: false, bossRevealT: 0,
     finished: false,
     camShake: 0,
   };
@@ -463,7 +463,7 @@
     G.invulnUntil = 0; G.shieldUntil = 0; G.pizzaMult = 1;
     G.spawnE = 0; G.spawnP = 0;
     G.camShake = 0;
-    G.boss = null; G.bossHp = 0; G.bossMax = 0; G.bossActive = false; G.bossHitAt = 0;
+    G.boss = null; G.bossHp = 0; G.bossMax = 0; G.bossActive = false; G.bossHitAt = 0; G.bossRevealT = 0;
 
     if (stg.boss) { G.bossMax = G.bossHp = stg.boss.hp; }
 
@@ -838,6 +838,7 @@
     // boss reveal near the end of a boss stage
     if (stg.boss && !G.bossActive && !G.finished && G.dist >= G.courseLen * 0.82) {
       G.bossActive = true;
+      G.bossRevealT = t;
       let m;
       try { m = GAr.createFoe("boss"); } catch (_) { m = new THREE.Group(); }
       m.position.set(0, 0, -12);
@@ -915,10 +916,12 @@
     // boss behaviour
     if (G.boss) {
       G.boss.position.x = Math.sin(t * 1.3) * 1.6;
-      G.boss.position.z = -9 + Math.sin(t * 0.8) * 1.2;
+      G.boss.position.z = -6.2 + Math.sin(t * 0.8) * 0.9;
       try { GAr.animateFoe && GAr.animateFoe(G.boss, t); } catch (_) {}
+      // Bump the boss just by sliding into its lane (kid-friendly); hitBoss()
+      // has a 500ms cooldown so a few seconds of aligning beats it.
       const dxb = G.boss.position.x - G.laneX;
-      if (Math.abs(dxb) < 1.9 && G.boss.position.z > -7) {
+      if (Math.abs(dxb) < 1.7) {
         hitBoss();
       }
     }
@@ -954,7 +957,14 @@
     // finish (non-boss = reach the end; boss = beat the boss)
     if (!G.finished) {
       if (!stg.boss && G.dist >= G.courseLen) finishStage(false);
-      // boss stages never auto-finish; beaten via hitBoss()
+      // Boss stages are normally beaten via hitBoss(), but guarantee a win so a
+      // fully passive 4-year-old can never get stuck: auto-clear ~20s after reveal.
+      else if (stg.boss && G.bossActive && G.boss && (t - G.bossRevealT) > 20) {
+        const wp = new THREE.Vector3(G.boss.position.x, 1.6, G.boss.position.z);
+        spawnFX("confetti", wp, 0x8bd450);
+        bossRoot.remove(G.boss); G.boss = null; G.bossActive = false; G.bossHp = 0;
+        finishStage(true);
+      }
     }
   }
 
