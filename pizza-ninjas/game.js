@@ -12,10 +12,10 @@
   const SAVE_KEY = "tmnt-3d-save";
 
   const TURTLES = [
-    { id: "leo", name: "ליאו", mask: "כחול · מנהיג", color: 0x2f6bff, superName: "סערת חרבות" },
-    { id: "raph", name: "ראף", mask: "אדום · חזק", color: 0xe53935, superName: "רעש אדמה" },
-    { id: "don", name: "דוני", mask: "סגול · גאון", color: 0x9b59d0, superName: "מגן חכם" },
-    { id: "mikey", name: "מיקי", mask: "כתום · כיף", color: 0xff8f1f, superName: "גשם פיצות" },
+    { id: "leo", name: "ליאו", mask: "מסכה כחולה", weapon: "חרבות קטאנה", letter: "L", color: 0x1e6bff, superName: "סערת חרבות" },
+    { id: "raph", name: "ראף", mask: "מסכה אדומה", weapon: "סאי", letter: "R", color: 0xe53935, superName: "רעש אדמה" },
+    { id: "don", name: "דוני", mask: "מסכה סגולה", weapon: "מקל בו", letter: "D", color: 0x9b4dca, superName: "מגן חכם" },
+    { id: "mikey", name: "מיקי", mask: "מסכה כתומה", weapon: "נונצ׳אקים", letter: "M", color: 0xff8a1a, superName: "גשם פיצות" },
   ];
 
   const STICKERS = [
@@ -232,9 +232,9 @@
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 80);
   camera.position.set(0, 3.2, 8);
 
-  const hemi = new THREE.HemisphereLight(0xb1ffd0, 0x1a3a2a, 1.05);
+  const hemi = new THREE.HemisphereLight(0xd8ffe8, 0x1a3a2a, 1.15);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff2cc, 1.35);
+  const sun = new THREE.DirectionalLight(0xfff5dd, 1.55);
   sun.position.set(4, 10, 6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -242,9 +242,16 @@
   sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
   sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
   scene.add(sun);
-  const fill = new THREE.PointLight(0x3ecf7a, 0.55, 30);
+  const fill = new THREE.PointLight(0x5ee08a, 0.7, 32);
   fill.position.set(-3, 3, 2);
   scene.add(fill);
+  // front key so masks / eyes / belt letters read clearly on iPad
+  const key = new THREE.DirectionalLight(0xffffff, 0.55);
+  key.position.set(0, 2.5, -4);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x88ffbb, 0.35);
+  rim.position.set(-2, 3, 5);
+  scene.add(rim);
 
   const worldRoot = new THREE.Group();
   scene.add(worldRoot);
@@ -349,7 +356,7 @@
     }
     const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
     playerMesh = M.createTurtle3D(t.color, t.id);
-    playerMesh.scale.setScalar(1.2);
+    playerMesh.scale.setScalar(1.28);
     // Mesh faces -Z by default (eyes on -Z) = into the tunnel, away from camera
     playerMesh.rotation.y = 0;
     playerMesh.visible = true;
@@ -369,12 +376,14 @@
   function buildShowcase() {
     clearGroup(showcaseRoot);
     showcaseTurtles = [];
+    // Hero lineup facing the camera (meshes face −Z by default; rotate to face cam)
+    const spacing = 2.15;
     TURTLES.forEach((t, i) => {
       const mesh = M.createTurtle3D(t.color, t.id);
-      mesh.scale.setScalar(1.0);
-      const ang = (i / 4) * Math.PI * 2;
-      mesh.position.set(Math.sin(ang) * 3.2, 0, Math.cos(ang) * 3.2 - 1);
-      mesh.userData.orbit = ang;
+      mesh.scale.setScalar(1.35);
+      mesh.position.set((i - 1.5) * spacing, 0, 0);
+      mesh.rotation.y = Math.PI;
+      mesh.userData.orbit = i;
       showcaseRoot.add(mesh);
       showcaseTurtles.push(mesh);
     });
@@ -772,7 +781,7 @@
       btn.type = "button";
       btn.className = "turtle-card";
       btn.dataset.id = t.id;
-      btn.innerHTML = '<div class="swatch"></div><div class="name">' + t.name + '</div><div class="meta">' + t.mask + '</div><div class="meta">כוח: ' + t.superName + "</div>";
+      btn.innerHTML = '<div class="swatch" data-letter="' + t.letter + '"></div><div class="name">' + t.name + '</div><div class="meta">' + t.mask + '</div><div class="meta">' + t.weapon + " · " + t.superName + "</div>";
       btn.addEventListener("click", () => {
         unlockAudio(); beep(520, 0.08, "triangle", 0.07);
         save.turtleId = t.id; persist();
@@ -1005,14 +1014,16 @@
   }
 
   function updateShowcase(t) {
-    showcaseRoot.rotation.y = t * 0.25;
     showcaseTurtles.forEach((mesh, i) => {
-      M.animateTurtleIdle(mesh, t + i);
-      mesh.rotation.y = t * 0.6 + i;
+      M.animateTurtleIdle(mesh, t + i * 0.7);
+      // keep facing camera with a slight heroic sway
+      mesh.rotation.y = Math.PI + Math.sin(t * 0.8 + i) * 0.12;
+      mesh.position.y = Math.sin(t * 1.6 + i) * 0.04;
     });
-    camera.position.set(Math.sin(t * 0.2) * 1.5, 3.4, 9);
-    camera.lookAt(0, 1.0, 0);
-    worldRoot.position.z = (t * 2) % 20;
+    // closer hero portrait framing — faces above the CTA
+    camera.position.set(Math.sin(t * 0.15) * 0.45, 2.05, 6.4);
+    camera.lookAt(0, 1.35, 0);
+    worldRoot.position.z = (t * 1.6) % 20;
   }
 
   function frame() {

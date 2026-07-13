@@ -124,10 +124,28 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: "Fredoka", 
 .turtle-card[data-id="don"] { --c: var(--don); }
 .turtle-card[data-id="mikey"] { --c: var(--mikey); }
 .turtle-card .swatch {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: radial-gradient(circle at 30% 25%, #fff, var(--c));
+  width: 78px; height: 78px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, #fff 0 10%, transparent 11%),
+    radial-gradient(circle at 35% 40%, #fff 0 9%, transparent 10%),
+    radial-gradient(circle at 65% 40%, #fff 0 9%, transparent 10%),
+    linear-gradient(180deg, var(--c) 38%, var(--c) 55%, #4ecf3a 56%, #3aa828 100%);
   box-shadow: 0 8px 0 rgba(0,0,0,.25), 0 0 18px color-mix(in srgb, var(--c) 50%, transparent);
   border: 3px solid rgba(255,246,224,.5);
+  position: relative;
+  display: grid; place-items: end center;
+}
+.turtle-card .swatch::after {
+  content: attr(data-letter);
+  font-family: Bungee, Fredoka, sans-serif;
+  font-size: .85rem;
+  color: #1a1208;
+  background: #ffd24a;
+  width: 1.35rem; height: 1.15rem;
+  border-radius: 4px;
+  display: grid; place-items: center;
+  margin-bottom: .35rem;
+  box-shadow: 0 2px 0 rgba(0,0,0,.35);
 }
 .turtle-card .name { font-size: 1.25rem; font-weight: 700; }
 .turtle-card .meta { font-size: .9rem; opacity: .9; text-align: center; }
