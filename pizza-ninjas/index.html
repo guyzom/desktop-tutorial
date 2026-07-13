@@ -4,108 +4,156 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="צבי נינג'ה 3D" />
+  <meta name="apple-mobile-web-app-title" content="צבי נינג'ה" />
+  <meta name="theme-color" content="#0a2a3a" />
   <link rel="icon" href="favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <title>צבי נינג'ה 3D — הרפתקה בביוב</title>
+  <title>צבי נינג'ה — הרפתקת פיצה</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Bungee&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="app">
     <canvas id="c3d"></canvas>
 
+    <!-- Friendly fallback if WebGL is unavailable -->
+    <div id="no-webgl" class="no-webgl" hidden>
+      <div class="no-webgl-card">
+        <div class="no-webgl-emoji">🐢🍕</div>
+        <h1>אופס!</h1>
+        <p>צריך דפדפן עם תלת־מימד.<br />נסו ספארי או כרום מעודכנים.</p>
+      </div>
+    </div>
+
     <div id="ui">
+
+      <!-- ===================== START ===================== -->
       <section id="screen-start" class="screen active">
-        <header class="hero-brand">
-          <p class="eyebrow">תלת־מימד אמיתי · לגיל 4+</p>
-          <h1>צבי נינג'ה</h1>
-          <p class="subtitle">3D · הרפתקה בביוב</p>
-          <p class="tagline">מסכות · נשקים · קוואבנגה!</p>
-        </header>
-        <button id="btn-start" class="big-btn pulse" type="button">בוא נשחק!</button>
+        <div class="start-topband">
+          <h1 class="game-title"><span class="t-turtle">צבי</span> <span class="t-ninja">נינג'ה</span></h1>
+          <p class="game-sub">🍕 הרפתקת פיצה 🍕</p>
+        </div>
+        <div class="start-spacer" aria-hidden="true"></div>
+        <div class="start-bottomband">
+          <button id="btn-start" class="big-btn pulse" type="button">
+            <span class="btn-emoji">▶</span> משחקים!
+          </button>
+        </div>
       </section>
 
+      <!-- ===================== PICK TURTLE ===================== -->
       <section id="screen-pick" class="screen">
-        <h2 class="screen-title">בחרו צב נינג'ה!</h2>
-        <div class="turtle-grid" id="turtle-grid"></div>
-        <button id="btn-back-start" class="ghost-btn" type="button">חזרה</button>
+        <div class="panel-topband">
+          <h2 class="panel-title">בוחרים חבר!</h2>
+        </div>
+        <div class="pick-spacer" aria-hidden="true"></div>
+        <div class="pick-bottomband">
+          <div class="turtle-grid" id="turtle-grid"></div>
+          <button id="btn-pick-back" class="ghost-btn" type="button">◀ אחורה</button>
+        </div>
       </section>
 
-      <section id="screen-map" class="screen">
+      <!-- ===================== WORLD MAP ===================== -->
+      <section id="screen-map" class="screen solid-screen">
         <header class="map-header">
-          <h2 class="screen-title">מפת הביוב</h2>
+          <h2 class="panel-title">המסע 🗺️</h2>
           <p class="map-turtle-label" id="map-turtle-label"></p>
         </header>
         <div class="map-board" id="map-board"></div>
         <div class="map-actions">
-          <button id="btn-stickers" class="ghost-btn" type="button">מדבקות</button>
-          <button id="btn-map-repick" class="ghost-btn" type="button">החלפת צב</button>
+          <button id="btn-map-repick" class="chip-btn" type="button">🐢 החלפת חבר</button>
+          <button id="btn-stickers" class="chip-btn" type="button">✨ מדבקות</button>
         </div>
       </section>
 
-      <section id="screen-stickers" class="screen">
-        <h2 class="screen-title">אלבום מדבקות</h2>
+      <!-- ===================== STICKERS ===================== -->
+      <section id="screen-stickers" class="screen solid-screen">
+        <header class="map-header">
+          <h2 class="panel-title">אלבום מדבקות ✨</h2>
+        </header>
         <div class="sticker-grid" id="sticker-grid"></div>
-        <button id="btn-stickers-back" class="ghost-btn" type="button">חזרה</button>
+        <button id="btn-stickers-back" class="big-btn" type="button">◀ אחורה</button>
       </section>
 
+      <!-- ===================== GAME HUD ===================== -->
       <section id="screen-game" class="screen">
         <div id="touch-pad" class="touch-pad" aria-hidden="true"></div>
-        <div class="hud">
-          <div class="hud-pill" id="hearts">❤❤❤</div>
-          <div class="hud-pill" id="pizza-count">🍕 0</div>
-          <div class="hud-pill" id="stage-label">1-1</div>
-          <div class="hud-pill boss-pill" id="boss-hp" hidden></div>
-          <button id="btn-pause" class="hud-btn" type="button" aria-label="השהה">⏸</button>
+
+        <div class="hud hud-top">
+          <div class="hud-left">
+            <div class="hud-pill hearts-pill" id="hearts"><span class="h">❤️</span><span class="h">❤️</span><span class="h">❤️</span></div>
+            <div class="hud-pill" id="pizza-count">🍕 0</div>
+          </div>
+          <div class="hud-right">
+            <div class="hud-pill stage-pill" id="stage-label">1-1</div>
+            <button id="btn-mute" class="hud-btn" type="button" aria-label="שקט">🔊</button>
+            <button id="btn-pause" class="hud-btn" type="button" aria-label="השהה">⏸️</button>
+          </div>
         </div>
+
+        <div class="boss-bar" id="boss-hp" hidden>
+          <span class="boss-face">🥦</span>
+          <span class="boss-track"><span class="boss-fill" id="boss-fill"></span></span>
+        </div>
+
+        <div id="combo" class="combo" hidden></div>
         <div id="stage-banner" class="stage-banner" hidden></div>
-        <button id="btn-super" class="super-btn" type="button" disabled>
-          <span class="super-ring" id="super-ring"></span>
-          <span id="super-label">כוח על</span>
-        </button>
         <div id="toast" class="toast" hidden></div>
-        <p class="drag-hint" id="drag-hint">הזזה = מסלול · הקשה = קפיצה!</p>
+        <p class="drag-hint" id="drag-hint">👆 מחליקים למסלול · נגיעה = קפיצה</p>
+
+        <button id="btn-super" class="super-btn" type="button" disabled>
+          <span class="super-fill" id="super-fill"></span>
+          <span class="super-text"><span class="super-emoji">⭐</span><span id="super-label">כוח על</span></span>
+        </button>
       </section>
 
+      <!-- ===================== PAUSE ===================== -->
       <section id="screen-pause" class="screen overlay-screen">
         <div class="overlay-card">
-          <h2>הפסקה</h2>
+          <h2>הפסקה ⏸️</h2>
           <p id="pause-stats"></p>
-          <button id="btn-resume" class="big-btn" type="button">ממשיכים!</button>
-          <button id="btn-exit-map" class="ghost-btn" type="button">יציאה למפה</button>
+          <button id="btn-resume" class="big-btn" type="button">▶ ממשיכים!</button>
+          <button id="btn-exit-map" class="ghost-btn" type="button">🗺️ למפה</button>
         </div>
       </section>
 
+      <!-- ===================== CLEAR ===================== -->
       <section id="screen-clear" class="screen overlay-screen">
-        <div class="overlay-card">
+        <div class="overlay-card win-card">
+          <div class="win-emoji" id="clear-emoji">🎉</div>
           <h2 id="clear-title">כל הכבוד!</h2>
           <div class="stars-row" id="stars-row">⭐⭐⭐</div>
           <p id="clear-stats"></p>
-          <button id="btn-clear-continue" class="big-btn" type="button">המשך</button>
+          <button id="btn-clear-continue" class="big-btn" type="button">המשך ▶</button>
         </div>
       </section>
 
+      <!-- ===================== GENTLE TRY-AGAIN ===================== -->
       <section id="screen-retry" class="screen overlay-screen">
         <div class="overlay-card">
-          <h2>בואו ננסה שוב!</h2>
-          <p>אין בעיה — אתם נינג'ות!</p>
-          <button id="btn-retry" class="big-btn" type="button">נסו שוב</button>
-          <button id="btn-retry-map" class="ghost-btn" type="button">יציאה למפה</button>
+          <div class="win-emoji">🐢💪</div>
+          <h2>ננסה שוב!</h2>
+          <p>אתם אלופים!</p>
+          <button id="btn-retry" class="big-btn" type="button">🔁 שוב</button>
+          <button id="btn-retry-map" class="ghost-btn" type="button">🗺️ למפה</button>
         </div>
       </section>
 
+      <!-- ===================== BIG CELEBRATION ===================== -->
       <div id="celebration" class="celebration" hidden>
-        <div class="cele-text" id="cele-text">קואבונגה!!!</div>
+        <div class="cele-text" id="cele-text">קוואבנגה!</div>
       </div>
+
     </div>
   </div>
 
   <script src="vendor/three.min.js"></script>
+  <script src="audio.js"></script>
   <script src="meshes.js"></script>
   <script src="game.js"></script>
 </body>
