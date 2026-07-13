@@ -160,6 +160,8 @@
       mode = "idle";
       showcaseRoot.visible = false;
     }
+    if (laneMarkers) laneMarkers.visible = mode === "game";
+    if (speedLines) speedLines.visible = mode === "game";
   }
 
   function toast(text) {
@@ -264,11 +266,28 @@
   function spawnFX(kind, position, color) {
     let mesh;
     if (kind === "spark" && M.createHitSpark) mesh = M.createHitSpark();
+    else if (kind === "ring" && M.createCollectRing) mesh = M.createCollectRing(color || 0xffd54a);
     else if (M.createConfettiBurst) mesh = M.createConfettiBurst(color || 0x3ecf7a);
     else return;
     mesh.position.copy(position);
     fxRoot.add(mesh);
     gameFX.push(mesh);
+  }
+
+  let laneMarkers = null;
+  let speedLines = null;
+
+  function ensureGameDecor() {
+    if (!laneMarkers && M.createLaneMarkers) {
+      laneMarkers = M.createLaneMarkers();
+      scene.add(laneMarkers);
+    }
+    if (!speedLines && M.createSpeedLines) {
+      speedLines = M.createSpeedLines();
+      scene.add(speedLines);
+    }
+    if (laneMarkers) laneMarkers.visible = mode === "game";
+    if (speedLines) speedLines.visible = mode === "game";
   }
 
   function updateAllFX(dt) {
@@ -329,8 +348,8 @@
       clearGroup(playerMesh);
     }
     const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
-    playerMesh = M.createTurtle3D(t.color);
-    playerMesh.scale.setScalar(1.15);
+    playerMesh = M.createTurtle3D(t.color, t.id);
+    playerMesh.scale.setScalar(1.2);
     // Mesh faces -Z by default (eyes on -Z) = into the tunnel, away from camera
     playerMesh.rotation.y = 0;
     playerMesh.visible = true;
@@ -351,8 +370,8 @@
     clearGroup(showcaseRoot);
     showcaseTurtles = [];
     TURTLES.forEach((t, i) => {
-      const mesh = M.createTurtle3D(t.color);
-      mesh.scale.setScalar(0.95);
+      const mesh = M.createTurtle3D(t.color, t.id);
+      mesh.scale.setScalar(1.0);
       const ang = (i / 4) * Math.PI * 2;
       mesh.position.set(Math.sin(ang) * 3.2, 0, Math.cos(ang) * 3.2 - 1);
       mesh.userData.orbit = ang;
@@ -376,6 +395,8 @@
     lane: 1,
     laneX: 0,
     laneXTarget: 0,
+    jumpY: 0,
+    jumpV: 0,
     invulnUntil: 0,
     shieldUntil: 0,
     pizzaMult: 1,
@@ -448,6 +469,8 @@
     game.lane = 1;
     game.laneX = LANES_X[1];
     game.laneXTarget = LANES_X[1];
+    game.jumpY = 0;
+    game.jumpV = 0;
     game.invulnUntil = 0;
     game.shieldUntil = 0;
     game.pizzaMult = 1;
@@ -460,7 +483,7 @@
 
     const stg = STAGES[idx];
     game.distance = 18 + stg.lengthMs * 0.0022;
-    game.speed = 6.5 + stg.world * 0.4;
+    game.speed = 7.0 + stg.world * 0.55;
 
     clearGroup(entityRoot);
     game.entities = [];
@@ -474,6 +497,10 @@
     spawnPlayerMesh(save.turtleId);
     playerMesh.position.set(game.laneX, 0, 0);
     playerMesh.rotation.y = 0;
+    ensureGameDecor();
+    mode = "game";
+    if (laneMarkers) laneMarkers.visible = true;
+    if (speedLines) speedLines.visible = true;
 
     game.boss = null;
     game.bossHp = 0;
@@ -492,13 +519,13 @@
     updateHud();
     showScreen("game");
     $("drag-hint").hidden = false;
-    $("drag-hint").textContent = "הזיזו ימינה ושמאלה!";
-    setTimeout(() => { $("drag-hint").hidden = true; }, 2800);
+    $("drag-hint").textContent = "הזזה = מסלול · הקשה = קפיצה!";
+    setTimeout(() => { $("drag-hint").hidden = true; }, 3200);
     const banner = $("stage-banner");
     banner.hidden = false;
     banner.textContent = stg.name;
     setTimeout(() => { banner.hidden = true; }, 1400);
-    toast("קדימה " + getTurtle().name + "!");
+    toast("קוואבנגה! " + getTurtle().name + "!");
   }
 
   function hurtPlayer() {
@@ -610,24 +637,24 @@
   let dragging = false;
   let activePointerId = null;
   let dragStartX = 0;
+  let dragStartY = 0;
   let dragStartLane = 1;
+  let dragStartTime = 0;
   let lastClientX = 0;
+  let movedFar = false;
 
   function clientToLaneX(clientX) {
     const rect = touchPad.getBoundingClientRect();
     const w = Math.max(1, rect.width);
-    // 0 at left edge → 1 at right edge (screen coords, always LTR)
     let nx = (clientX - rect.left) / w;
     nx = Math.min(1, Math.max(0, nx));
-    // Map to world X: left screen = left lane (-2.2), right = +2.2
-    return (nx - 0.5) * 2 * 2.4; // ≈ -2.4 .. 2.4
+    return (nx - 0.5) * 2 * 2.4;
   }
 
   function applyFingerX(clientX) {
     lastClientX = clientX;
     const x = clientToLaneX(clientX);
     game.laneXTarget = Math.min(LANES_X[2], Math.max(LANES_X[0], x));
-    // discrete lane for spawns/logic
     if (game.laneXTarget < (LANES_X[0] + LANES_X[1]) / 2) game.lane = 0;
     else if (game.laneXTarget > (LANES_X[1] + LANES_X[2]) / 2) game.lane = 2;
     else game.lane = 1;
@@ -635,13 +662,24 @@
     touchPad.dataset.x = game.laneXTarget.toFixed(2);
   }
 
+  function tryJump() {
+    if (!game.running || game.paused) return;
+    if (game.jumpY > 0.08) return;
+    game.jumpV = 8.2;
+    beep(720, 0.07, "triangle", 0.05);
+    camShake = Math.max(camShake, 0.1);
+  }
+
   function onPadDown(e) {
     if (!game.running || game.paused) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     dragging = true;
+    movedFar = false;
     activePointerId = e.pointerId;
     dragStartX = e.clientX;
+    dragStartY = e.clientY;
     dragStartLane = game.lane;
+    dragStartTime = performance.now();
     try { touchPad.setPointerCapture(e.pointerId); } catch (_) {}
     applyFingerX(e.clientX);
     e.preventDefault();
@@ -650,9 +688,10 @@
   function onPadMove(e) {
     if (!dragging || !game.running || game.paused) return;
     if (activePointerId != null && e.pointerId !== activePointerId) return;
-    applyFingerX(e.clientX);
-    // swipe assist: quick horizontal flick jumps a lane
     const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    if (Math.hypot(dx, dy) > 18) movedFar = true;
+    applyFingerX(e.clientX);
     if (Math.abs(dx) > 70) {
       if (dx > 0 && dragStartLane < 2) {
         game.lane = Math.min(2, dragStartLane + 1);
@@ -663,15 +702,18 @@
       }
       dragStartX = e.clientX;
       dragStartLane = game.lane;
+      movedFar = true;
     }
     e.preventDefault();
   }
 
   function onPadUp(e) {
     if (activePointerId != null && e.pointerId !== activePointerId) return;
+    const held = performance.now() - dragStartTime;
+    // Short tap without much drag = jump (kid-friendly extra action)
+    if (!movedFar && held < 220) tryJump();
     dragging = false;
     activePointerId = null;
-    // snap to nearest lane on release (easier for age 4)
     let best = 1, bestD = Infinity;
     for (let i = 0; i < 3; i++) {
       const d = Math.abs(LANES_X[i] - game.laneXTarget);
@@ -688,21 +730,29 @@
   touchPad.addEventListener("pointercancel", onPadUp, { passive: false });
   touchPad.addEventListener("lostpointercapture", () => { dragging = false; activePointerId = null; });
 
-  // Extra safety for older iOS Safari touch events
   touchPad.addEventListener("touchstart", (e) => {
     if (!game.running || game.paused) return;
     if (!e.touches || !e.touches.length) return;
     dragging = true;
+    movedFar = false;
+    dragStartX = e.touches[0].clientX;
+    dragStartY = e.touches[0].clientY;
+    dragStartTime = performance.now();
     applyFingerX(e.touches[0].clientX);
     e.preventDefault();
   }, { passive: false });
   touchPad.addEventListener("touchmove", (e) => {
     if (!dragging || !game.running || game.paused) return;
     if (!e.touches || !e.touches.length) return;
+    const dx = e.touches[0].clientX - dragStartX;
+    const dy = e.touches[0].clientY - dragStartY;
+    if (Math.hypot(dx, dy) > 18) movedFar = true;
     applyFingerX(e.touches[0].clientX);
     e.preventDefault();
   }, { passive: false });
   touchPad.addEventListener("touchend", () => {
+    const held = performance.now() - dragStartTime;
+    if (!movedFar && held < 220) tryJump();
     dragging = false;
     let best = 1, bestD = Infinity;
     for (let i = 0; i < 3; i++) {
@@ -814,39 +864,61 @@
     });
 
     if (playerMesh) {
+      // jump physics (tap)
+      game.jumpV -= 22 * dt;
+      game.jumpY += game.jumpV * dt;
+      if (game.jumpY <= 0) {
+        game.jumpY = 0;
+        game.jumpV = 0;
+      }
+
       // follow finger target (smooth), not only discrete lane snaps
       const targetX = (typeof game.laneXTarget === "number") ? game.laneXTarget : LANES_X[game.lane];
       const dxLane = targetX - game.laneX;
-      game.laneX += dxLane * Math.min(1, dt * 14);
+      game.laneX += dxLane * Math.min(1, dt * 16);
       playerMesh.position.x = game.laneX;
+      playerMesh.position.y = game.jumpY;
       playerMesh.position.z = 0;
       // lean into lane change + run cycle
-      const lean = THREE.MathUtils.clamp(dxLane * 0.2, -0.4, 0.4);
+      const lean = THREE.MathUtils.clamp(dxLane * 0.22, -0.45, 0.45);
       playerMesh.rotation.z = lean;
+      playerMesh.rotation.x = game.jumpY > 0.15 ? -0.12 : 0;
       playerMesh.rotation.y = 0; // face into tunnel (-Z)
       M.animateTurtleRun(playerMesh, t);
       if (prevLane !== game.lane) {
         prevLane = game.lane;
-        camShake = 0.12;
+        camShake = 0.14;
       }
+    }
+
+    if (speedLines && speedLines.visible && M.animateSpeedLines) {
+      M.animateSpeedLines(speedLines, t, game.speed);
     }
 
     updateAllFX(dt);
 
     const px = game.laneX;
+    const py = game.jumpY;
     const now = performance.now();
+    const airborne = py > 0.55;
 
     for (const ent of [...game.entities]) {
       ent.mesh.position.z += move;
       if (ent.kind === "pickup") {
-        ent.mesh.rotation.y += dt * 3.5;
-        ent.mesh.rotation.x = Math.sin(t * 5) * 0.25;
-        ent.mesh.position.y = 0.85 + Math.sin(t * 5 + ent.mesh.position.z) * 0.18;
+        if (M.animatePizza) M.animatePizza(ent.mesh, t);
+        else {
+          ent.mesh.rotation.y += dt * 3.5;
+          ent.mesh.position.y = 0.85 + Math.sin(t * 5 + ent.mesh.position.z) * 0.18;
+        }
+        const baseY = 0.85;
         const dx = ent.mesh.position.x - px;
         const dz = ent.mesh.position.z - 0;
-        if (Math.hypot(dx, dz) < 1.9) {
+        const dy = (ent.mesh.position.y || baseY) - py;
+        if (Math.hypot(dx, dz) < 2.0 && Math.abs(dy) < 1.6) {
           game.pizzas += (ent.gold ? 3 : 1) * game.pizzaMult;
-          spawnFX("confetti", ent.mesh.position.clone().setY(1), ent.gold ? 0xffd54a : 0xff8a1f);
+          const fxPos = ent.mesh.position.clone().setY(1.1);
+          spawnFX("ring", fxPos, ent.gold ? 0xffd54a : 0xff8a1f);
+          spawnFX("confetti", fxPos, ent.gold ? 0xffd54a : 0xff8a1f);
           removeEntity(ent);
           beep(ent.gold ? 880 : 660, 0.08, "triangle", 0.06);
           updateHud();
@@ -859,7 +931,7 @@
         const dx = ent.mesh.position.x - px;
         const dz = ent.mesh.position.z - 0;
         const dist = Math.hypot(dx, dz);
-        if (dist < 1.35 && Math.abs(dz) < 1.2 && Math.abs(dx) < 1.2) {
+        if (!airborne && dist < 1.35 && Math.abs(dz) < 1.2 && Math.abs(dx) < 1.2) {
           if (!ent._hitAt || now - ent._hitAt > 280) {
             ent._hitAt = now;
             if (M.triggerAttack) M.triggerAttack(playerMesh);
@@ -868,7 +940,8 @@
             camShake = 0.25;
           }
         }
-        if (ent.mesh.position.z > 1.2 && Math.abs(ent.mesh.position.x - px) < 1.0) {
+        // Jump clears low broccoli
+        if (!airborne && ent.mesh.position.z > 1.2 && Math.abs(ent.mesh.position.x - px) < 1.0) {
           hurtPlayer();
           camShake = 0.35;
           removeEntity(ent);
@@ -913,16 +986,16 @@
       });
     }
 
-    // cinematic camera follow + bob + shake
+    // cinematic camera follow + bob + shake + jump lift
     camShake = Math.max(0, camShake - dt);
     const bob = Math.sin(t * 12) * 0.08;
     const shakeX = (Math.random() - 0.5) * camShake;
     const shakeY = (Math.random() - 0.5) * camShake;
-    const desiredCamX = game.laneX * 0.45 + shakeX;
-    camera.position.x += (desiredCamX - camera.position.x) * 0.12;
-    camera.position.y = 2.85 + bob + shakeY;
-    camera.position.z = 6.4;
-    camera.lookAt(game.laneX * 0.25, 1.15, -5);
+    const desiredCamX = game.laneX * 0.5 + shakeX;
+    camera.position.x += (desiredCamX - camera.position.x) * 0.14;
+    camera.position.y = 2.85 + bob + shakeY + py * 0.35;
+    camera.position.z = 6.2;
+    camera.lookAt(game.laneX * 0.28, 1.15 + py * 0.25, -5);
 
     if (!stg.boss && game.progress >= 1) finishStage(false);
     if (stg.boss && game.progress >= 1.15 && game.bossHp > 0) {
@@ -981,6 +1054,8 @@
       game.running = false;
       if (playerMesh) playerMesh.visible = false;
       showcaseRoot.visible = false;
+      if (laneMarkers) laneMarkers.visible = false;
+      if (speedLines) speedLines.visible = false;
       buildMap();
       showScreen("map");
       mode = "idle";
@@ -989,6 +1064,8 @@
       game.running = false;
       if (playerMesh) playerMesh.visible = false;
       showcaseRoot.visible = false;
+      if (laneMarkers) laneMarkers.visible = false;
+      if (speedLines) speedLines.visible = false;
       buildMap();
       showScreen("map");
       mode = "idle";
@@ -997,6 +1074,8 @@
     $("btn-clear-continue").addEventListener("click", () => {
       if (playerMesh) playerMesh.visible = false;
       showcaseRoot.visible = false;
+      if (laneMarkers) laneMarkers.visible = false;
+      if (speedLines) speedLines.visible = false;
       buildMap();
       showScreen("map");
       mode = "idle";
