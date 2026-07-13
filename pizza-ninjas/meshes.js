@@ -1,10 +1,54 @@
-/* Rich procedural Three.js meshes + obvious kid-friendly animation
- * Global: window.TMNTMeshes  |  Requires THREE (r160)  |  iPad-friendly poly counts
+/* meshes.js — window.GameArt
+ * Pure procedural Three.js (r160). Bright, saturated cartoon/toon look.
+ * Adorable heroic ninja turtles + friendly veggie foes + pizza + 3 worlds.
+ * Everything is a THREE.Group. iPad-friendly poly counts.
+ * Models face -Z (into the tunnel), feet rest at y = 0.
  */
 (function (global) {
   "use strict";
 
-  // ---------- helpers ----------
+  var THREE = global.THREE;
+
+  // =====================================================================
+  //  helpers
+  // =====================================================================
+
+  function shadowify(root, cast, receive) {
+    cast = cast !== false; receive = receive !== false;
+    root.traverse(function (o) {
+      if (o.isMesh && !o.userData.noShadow) { o.castShadow = cast; o.receiveShadow = receive; }
+    });
+  }
+
+  // capsule-ish limb whose pivot is at the TOP; extends down by `len`.
+  function limbSeg(radTop, radBot, len, mat) {
+    var g = new THREE.Group();
+    var mesh;
+    if (THREE.CapsuleGeometry && Math.abs(radTop - radBot) < 1e-4) {
+      mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radTop, Math.max(0.01, len - radTop * 2), 6, 12), mat);
+    } else {
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(radTop, radBot, len, 14), mat);
+    }
+    mesh.position.y = -len / 2;
+    g.add(mesh);
+    g.userData.limbMesh = mesh;
+    return g;
+  }
+
+  // toon outline: dark backface shell clone (classic cartoon silhouette)
+  var OUTLINE_MAT = null;
+  function outlineMat() {
+    if (!OUTLINE_MAT) OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x0b2f14, side: THREE.BackSide });
+    return OUTLINE_MAT;
+  }
+  function addOutline(mesh, scale) {
+    var o = new THREE.Mesh(mesh.geometry, outlineMat());
+    o.scale.setScalar(scale || 1.07);
+    o.userData.noShadow = true;
+    o.castShadow = false; o.receiveShadow = false;
+    mesh.add(o);
+    return o;
+  }
 
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -16,109 +60,24 @@
     ctx.closePath();
   }
 
-  function shadowify(root) {
-    root.traverse(function (o) {
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
-    });
-  }
+  function srgb(tex) { if (tex && "colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace; return tex; }
 
-  function limbSeg(rad, len, mat) {
-    var g = new THREE.Group();
-    var mesh;
-    if (THREE.CapsuleGeometry) {
-      mesh = new THREE.Mesh(new THREE.CapsuleGeometry(rad, Math.max(0.01, len - rad * 2), 5, 10), mat);
-    } else {
-      mesh = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, len, 10), mat);
-    }
-    mesh.position.y = -len / 2;
-    g.add(mesh);
-    return g;
-  }
+  // =====================================================================
+  //  shared textures (cached)
+  // =====================================================================
 
-  // ---------- sewer brick texture (higher contrast) ----------
+  var _tex = {};
 
-  function createSewerTexture() {
-    var w = 512, h = 512;
-    var c = document.createElement("canvas");
-    c.width = w; c.height = h;
+  function shellTexture() {
+    if (_tex.shell) return _tex.shell;
+    var c = document.createElement("canvas"); c.width = c.height = 256;
     var ctx = c.getContext("2d");
-    // deep mortar background
-    var grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, "#100a08");
-    grad.addColorStop(1, "#1a1210");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    var cols = 6, rows = 10, bw = w / cols, bh = h / rows;
-    for (var r = 0; r < rows; r++) {
-      var offset = (r % 2) * (bw / 2);
-      for (var cn = -1; cn <= cols; cn++) {
-        var x = cn * bw + offset + 3, y = r * bh + 3;
-        var warm = (Math.random() < 0.5);
-        var shade = 0.55 + Math.random() * 0.75; // wider range = more contrast
-        var R, G, B;
-        if (warm) {
-          R = Math.floor(150 * shade); G = Math.floor(88 * shade); B = Math.floor(52 * shade);
-        } else {
-          R = Math.floor(105 * shade); G = Math.floor(80 * shade); B = Math.floor(70 * shade);
-        }
-        ctx.fillStyle = "rgb(" + R + "," + G + "," + B + ")";
-        roundRect(ctx, x, y, bw - 6, bh - 6, 4);
-        ctx.fill();
-        // top highlight
-        ctx.fillStyle = "rgba(255,225,180,0.14)";
-        ctx.fillRect(x + 2, y + 2, bw - 12, 4);
-        // bottom shadow
-        ctx.fillStyle = "rgba(0,0,0,0.32)";
-        ctx.fillRect(x + 4, y + bh - 14, bw - 14, 5);
-        // occasional crack
-        if (Math.random() < 0.12) {
-          ctx.strokeStyle = "rgba(0,0,0,0.55)";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          var cx = x + 6 + Math.random() * (bw - 18);
-          var cy = y + 6 + Math.random() * (bh - 18);
-          ctx.moveTo(cx, cy);
-          ctx.lineTo(cx + 6 + Math.random() * 12, cy + (Math.random() - 0.5) * 8);
-          ctx.stroke();
-        }
-      }
-    }
-    // moss speckles (brighter, more variance)
-    for (var i = 0; i < 160; i++) {
-      ctx.fillStyle = "rgba(60,150,80," + (0.08 + Math.random() * 0.22) + ")";
-      ctx.beginPath();
-      ctx.arc(Math.random() * w, Math.random() * h, 2 + Math.random() * 6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // grime streaks
-    for (var s = 0; s < 20; s++) {
-      ctx.fillStyle = "rgba(0,0,0," + (0.05 + Math.random() * 0.1) + ")";
-      ctx.fillRect(Math.random() * w, 0, 2 + Math.random() * 3, h);
-    }
-
-    var tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.anisotropy = 8;
-    if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  // ---------- iconic TMNT turtle ----------
-
-  function shellScuteMat(baseHex, edgeHex) {
-    var c = document.createElement("canvas");
-    c.width = 256; c.height = 256;
-    var ctx = c.getContext("2d");
-    var g = ctx.createRadialGradient(128, 110, 20, 128, 128, 140);
-    g.addColorStop(0, "#a36a3a");
-    g.addColorStop(0.55, "#6e3f1c");
-    g.addColorStop(1, "#3a2010");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 256, 256);
-    // scute cracks
-    ctx.strokeStyle = "rgba(30,14,6,0.7)";
-    ctx.lineWidth = 3;
+    var g = ctx.createRadialGradient(128, 100, 20, 128, 128, 150);
+    g.addColorStop(0, "#7bbf46");
+    g.addColorStop(0.55, "#4f962f");
+    g.addColorStop(1, "#2e6a1e");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(24,60,16,0.85)";
     function hex(cx, cy, r) {
       ctx.beginPath();
       for (var i = 0; i < 6; i++) {
@@ -127,947 +86,1027 @@
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
+      ctx.fillStyle = "rgba(150,205,110,0.30)"; ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = "rgba(255,200,120,0.07)";
-      ctx.fill();
     }
-    hex(128, 118, 42);
-    [[128, 55], [190, 95], [190, 155], [128, 185], [66, 155], [66, 95]].forEach(function (p) {
-      hex(p[0], p[1], 34);
-    });
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    for (var i = 0; i < 40; i++) {
-      ctx.beginPath();
-      ctx.arc(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    var tex = new THREE.CanvasTexture(c);
-    if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.MeshStandardMaterial({
-      map: tex, color: baseHex || 0xffffff, roughness: 0.78, metalness: 0.08
-    });
+    hex(128, 120, 46);
+    [[128, 52], [196, 92], [196, 158], [128, 196], [60, 158], [60, 92]].forEach(function (p) { hex(p[0], p[1], 36); });
+    _tex.shell = srgb(new THREE.CanvasTexture(c));
+    return _tex.shell;
   }
 
-  function makeBeltLetter(letter, goldMat) {
+  function brickTexture() {
+    if (_tex.brick) return _tex.brick;
+    var w = 512, h = 512, c = document.createElement("canvas");
+    c.width = w; c.height = h; var ctx = c.getContext("2d");
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#2b4b48"); grad.addColorStop(1, "#20403e");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    var cols = 6, rows = 10, bw = w / cols, bh = h / rows;
+    for (var r = 0; r < rows; r++) {
+      var off = (r % 2) * (bw / 2);
+      for (var cn = -1; cn <= cols; cn++) {
+        var x = cn * bw + off + 3, y = r * bh + 3;
+        var shade = 0.7 + Math.random() * 0.4;
+        var R = Math.floor(70 * shade), G = Math.floor(120 * shade), B = Math.floor(112 * shade);
+        ctx.fillStyle = "rgb(" + R + "," + G + "," + B + ")";
+        roundRect(ctx, x, y, bw - 6, bh - 6, 5); ctx.fill();
+        ctx.fillStyle = "rgba(190,240,220,0.16)"; ctx.fillRect(x + 2, y + 2, bw - 12, 4);
+        ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.fillRect(x + 4, y + bh - 13, bw - 14, 5);
+      }
+    }
+    for (var i = 0; i < 130; i++) {
+      ctx.fillStyle = "rgba(90,220,150," + (0.06 + Math.random() * 0.18) + ")";
+      ctx.beginPath(); ctx.arc(Math.random() * w, Math.random() * h, 2 + Math.random() * 5, 0, Math.PI * 2); ctx.fill();
+    }
+    var t = srgb(new THREE.CanvasTexture(c));
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    _tex.brick = t; return t;
+  }
+
+  function checkerTexture() {
+    if (_tex.checker) return _tex.checker;
+    var n = 8, s = 64, c = document.createElement("canvas");
+    c.width = c.height = n * s; var ctx = c.getContext("2d");
+    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+      ctx.fillStyle = ((x + y) % 2) ? "#e9412e" : "#fbf0da";
+      ctx.fillRect(x * s, y * s, s, s);
+    }
+    ctx.strokeStyle = "rgba(0,0,0,0.08)"; ctx.lineWidth = 2;
+    for (var i = 0; i <= n; i++) { ctx.beginPath(); ctx.moveTo(i * s, 0); ctx.lineTo(i * s, n * s); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * s); ctx.lineTo(n * s, i * s); ctx.stroke(); }
+    var t = srgb(new THREE.CanvasTexture(c));
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _tex.checker = t; return t;
+  }
+
+  function skylineTexture() {
+    if (_tex.skyline) return _tex.skyline;
+    var w = 1024, h = 256, c = document.createElement("canvas");
+    c.width = w; c.height = h; var ctx = c.getContext("2d");
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#2a3b74"); grad.addColorStop(1, "#5566a8");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    // moon
+    ctx.fillStyle = "#fff7d8"; ctx.beginPath(); ctx.arc(180, 70, 40, 0, Math.PI * 2); ctx.fill();
+    // stars
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    for (var s = 0; s < 60; s++) { ctx.fillRect(Math.random() * w, Math.random() * h * 0.6, 2, 2); }
+    // building silhouettes
+    var x = 0;
+    while (x < w) {
+      var bw = 40 + Math.random() * 90;
+      var bh = 60 + Math.random() * 150;
+      var shade = 20 + Math.floor(Math.random() * 30);
+      ctx.fillStyle = "rgb(" + shade + "," + (shade + 12) + "," + (shade + 40) + ")";
+      ctx.fillRect(x, h - bh, bw, bh);
+      // windows
+      ctx.fillStyle = "rgba(255,220,120,0.85)";
+      for (var wy = h - bh + 10; wy < h - 8; wy += 18) {
+        for (var wx = x + 6; wx < x + bw - 8; wx += 16) {
+          if (Math.random() < 0.55) ctx.fillRect(wx, wy, 7, 9);
+        }
+      }
+      x += bw + 6;
+    }
+    _tex.skyline = srgb(new THREE.CanvasTexture(c));
+    return _tex.skyline;
+  }
+
+  // =====================================================================
+  //  TURTLE
+  // =====================================================================
+
+  var TURTLE_DEF = {
+    leo:   { mask: 0x1e6bff, letter: "L", weapon: "katana" },
+    raph:  { mask: 0xe53935, letter: "R", weapon: "sai" },
+    don:   { mask: 0x9b4dca, letter: "D", weapon: "bo" },
+    mikey: { mask: 0xff8a1a, letter: "M", weapon: "nunchaku" }
+  };
+
+  function beltLetter(letter, goldMat, inkMat) {
     var g = new THREE.Group();
-    var plate = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.06), goldMat);
-    g.add(plate);
-    var ink = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.5, metalness: 0.2 });
+    var plate = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 20), goldMat);
+    plate.rotation.x = Math.PI / 2; g.add(plate);
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.02, 8, 22), goldMat);
+    ring.position.z = 0.005; g.add(ring);
     function bar(w, h, x, y) {
-      var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), ink);
-      m.position.set(x, y, -0.04);
-      g.add(m);
+      var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), inkMat);
+      m.position.set(x, y, -0.03); g.add(m);
     }
     letter = (letter || "L").toUpperCase();
-    if (letter === "L") {
-      bar(0.05, 0.15, -0.055, 0); bar(0.12, 0.05, 0.015, -0.05);
-    } else if (letter === "R") {
-      bar(0.05, 0.15, -0.06, 0); bar(0.1, 0.04, 0.015, 0.055);
-      bar(0.1, 0.04, 0.015, 0); bar(0.05, 0.08, 0.055, -0.04);
-      bar(0.04, 0.04, 0.045, 0.025);
-    } else if (letter === "D") {
-      bar(0.05, 0.15, -0.06, 0); bar(0.09, 0.04, 0.015, 0.055);
-      bar(0.09, 0.04, 0.015, -0.055); bar(0.05, 0.11, 0.06, 0);
-    } else { // M
-      bar(0.042, 0.15, -0.075, 0); bar(0.042, 0.15, 0.075, 0);
-      bar(0.042, 0.1, -0.028, 0.015); bar(0.042, 0.1, 0.028, 0.015);
-      bar(0.04, 0.05, 0, -0.015);
-    }
+    if (letter === "L") { bar(0.045, 0.16, -0.05, 0); bar(0.11, 0.045, 0.02, -0.06); }
+    else if (letter === "R") { bar(0.045, 0.16, -0.055, 0); bar(0.09, 0.04, 0.02, 0.06); bar(0.09, 0.04, 0.02, 0.005); bar(0.045, 0.09, 0.05, -0.045); bar(0.04, 0.04, 0.04, 0.03); }
+    else if (letter === "D") { bar(0.045, 0.16, -0.055, 0); bar(0.085, 0.04, 0.015, 0.06); bar(0.085, 0.04, 0.015, -0.06); bar(0.045, 0.12, 0.058, 0); }
+    else { bar(0.04, 0.16, -0.075, 0); bar(0.04, 0.16, 0.075, 0); bar(0.04, 0.1, -0.028, 0.02); bar(0.04, 0.1, 0.028, 0.02); }
+    g.scale.setScalar(0.62);
     return g;
   }
 
-  function makeThreeFingerHand(skinMat, maskMat) {
+  function threeFingerHand(skinMat, padMat) {
     var fist = new THREE.Group();
     var palm = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), skinMat);
-    palm.scale.set(1.15, 0.85, 0.95);
-    fist.add(palm);
-    // classic 3 fingers
+    palm.scale.set(1.1, 0.9, 1.0); addOutline(palm, 1.08); fist.add(palm);
     for (var i = -1; i <= 1; i++) {
-      var fingerGeo = THREE.CapsuleGeometry
-        ? new THREE.CapsuleGeometry(0.028, 0.06, 4, 8)
-        : new THREE.CylinderGeometry(0.028, 0.022, 0.1, 8);
-      var finger = new THREE.Mesh(fingerGeo, skinMat);
-      finger.position.set(i * 0.055, -0.1, -0.02);
-      finger.rotation.x = 0.35;
-      fist.add(finger);
+      var fg = THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(0.03, 0.055, 3, 8) : new THREE.CylinderGeometry(0.03, 0.025, 0.1, 8);
+      var f = new THREE.Mesh(fg, skinMat);
+      f.position.set(i * 0.055, -0.09, -0.03); f.rotation.x = 0.5; fist.add(f);
     }
-    var wristBand = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.028, 8, 16), maskMat);
-    wristBand.position.y = 0.08;
-    fist.add(wristBand);
+    var band = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 16), padMat);
+    band.position.y = 0.075; band.rotation.x = 0.15; fist.add(band);
     return fist;
   }
 
-  function makeThreeToeFoot(skinMat, maskMat) {
+  function threeToeFoot(skinMat, padMat) {
     var foot = new THREE.Group();
-    var pad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), skinMat);
-    pad.scale.set(1.05, 0.55, 1.35);
-    pad.position.set(0, 0, -0.02);
-    foot.add(pad);
+    var pad = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), skinMat);
+    pad.scale.set(1.0, 0.6, 1.4); pad.position.z = -0.03; addOutline(pad, 1.06); foot.add(pad);
     for (var i = -1; i <= 1; i++) {
-      var toe = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), skinMat);
-      toe.position.set(i * 0.05, -0.01, -0.14);
-      toe.scale.set(1, 0.7, 1.2);
-      foot.add(toe);
+      var toe = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), skinMat);
+      toe.position.set(i * 0.055, -0.02, -0.16); toe.scale.set(1, 0.75, 1.25); foot.add(toe);
     }
-    var ankle = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.028, 8, 14), maskMat);
-    ankle.position.y = 0.06;
-    foot.add(ankle);
+    var band = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.028, 8, 14), padMat);
+    band.position.y = 0.05; foot.add(band);
     return foot;
   }
 
-  function attachTurtleWeapon(parts, turtleId) {
-    if (!turtleId) return;
-    var metal = new THREE.MeshStandardMaterial({ color: 0xe8ecf2, roughness: 0.22, metalness: 0.92 });
-    var darkMetal = new THREE.MeshStandardMaterial({ color: 0x4a5058, roughness: 0.35, metalness: 0.8 });
-    var wrap = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 });
-    var gold = new THREE.MeshStandardMaterial({ color: 0xffc94a, roughness: 0.3, metalness: 0.7 });
-    var wood = new THREE.MeshStandardMaterial({ color: 0x7a4518, roughness: 0.7 });
+  function buildWeapon(kind, mats) {
+    // returns { held:Group (for right hand), heldL:Group|null (left hand), sheath:Group|null (on shell) }
+    var metal = mats.metal, dark = mats.dark, wrap = mats.wrap, gold = mats.gold, wood = mats.wood;
 
-    if (turtleId === "leo") {
-      function makeKatana(held) {
-        var kat = new THREE.Group();
-        var blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.85, 0.018), metal);
-        blade.position.y = 0.4;
-        kat.add(blade);
-        var tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.1, 6), metal);
-        tip.position.y = 0.87;
-        kat.add(tip);
-        var guard = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 0.06), gold);
-        guard.position.y = -0.02;
-        kat.add(guard);
-        var handle = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.2, 0.042), wrap);
-        handle.position.y = -0.14;
-        kat.add(handle);
-        for (var w = 0; w < 4; w++) {
-          var ring = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.012, 0.048), gold);
-          ring.position.y = -0.06 - w * 0.04;
-          kat.add(ring);
-        }
-        var pommel = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), gold);
-        pommel.position.y = -0.26;
-        kat.add(pommel);
-        return kat;
-      }
-      // scabbards on shell
-      for (var i = 0; i < 2; i++) {
-        var saya = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.7, 10), darkMetal);
-        saya.position.set(i === 0 ? -0.12 : 0.12, 0.08, 0.38);
-        saya.rotation.z = (i === 0 ? 1 : -1) * 0.65;
-        saya.rotation.x = 0.2;
-        parts.shell.add(saya);
-      }
-      // twin blades in hands — readable silhouette
-      var kL = makeKatana(); kL.rotation.x = Math.PI; kL.rotation.z = 0.25; kL.position.y = -0.02; parts.fistL.add(kL);
-      var kR = makeKatana(); kR.rotation.x = Math.PI; kR.rotation.z = -0.25; kR.position.y = -0.02; parts.fistR.add(kR);
-    } else if (turtleId === "raph") {
-      function makeSai() {
-        var g = new THREE.Group();
-        var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.42, 8), metal);
-        shaft.position.y = -0.26;
-        g.add(shaft);
-        var tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 6), metal);
-        tip.position.y = -0.5;
-        g.add(tip);
-        var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.15, 8), wrap);
-        handle.position.y = 0.02;
-        g.add(handle);
-        var cross = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.022, 0.035), darkMetal);
-        cross.position.y = -0.06;
-        g.add(cross);
-        [-1, 1].forEach(function (s) {
-          var prong = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.014, 0.16, 6), metal);
-          prong.position.set(s * 0.065, -0.14, 0);
-          prong.rotation.z = s * 0.15;
-          g.add(prong);
-        });
-        return g;
-      }
-      var sL = makeSai(); sL.rotation.x = Math.PI; sL.position.y = -0.02; parts.fistL.add(sL);
-      var sR = makeSai(); sR.rotation.x = Math.PI; sR.position.y = -0.02; parts.fistR.add(sR);
-    } else if (turtleId === "don") {
-      var bo = new THREE.Group();
-      var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.65, 12), wood);
-      bo.add(shaft);
-      [-0.78, 0.78].forEach(function (y) {
-        var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.07, 10), darkMetal);
-        cap.position.y = y;
-        bo.add(cap);
-      });
-      [-0.22, 0.22].forEach(function (y) {
-        var grip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.14, 10), wrap);
-        grip.position.y = y;
-        bo.add(grip);
-      });
-      // held upright in right hand so kids can see it on the title screen
-      var held = bo.clone();
-      held.scale.setScalar(0.85);
-      held.rotation.x = Math.PI;
-      held.position.set(0.02, -0.35, 0);
-      parts.fistR.add(held);
-      // spare across back
-      bo.rotation.z = Math.PI / 2 - 0.35;
-      bo.rotation.x = 0.15;
-      bo.position.set(0, 0.12, 0.42);
-      parts.shell.add(bo);
-    } else if (turtleId === "mikey") {
-      function stick() {
-        var s = new THREE.Group();
-        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.26, 10), wood);
-        s.add(body);
-        var c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.025, 10), darkMetal);
-        c1.position.y = 0.13; s.add(c1);
-        var c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.025, 10), darkMetal);
-        c2.position.y = -0.13; s.add(c2);
-        return s;
-      }
-      var nun = new THREE.Group();
-      var a = stick(); a.position.set(-0.02, -0.14, 0); a.rotation.z = 0.45; nun.add(a);
-      var b = stick(); b.position.set(0.1, -0.28, 0.02); b.rotation.z = -0.25; nun.add(b);
-      // chain links
-      for (var li = 0; li < 4; li++) {
-        var link = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.006, 6, 10), darkMetal);
-        link.position.set(0.03 + li * 0.025, -0.08 - li * 0.04, 0);
-        link.rotation.y = Math.PI / 2;
-        nun.add(link);
-      }
-      parts.fistR.add(nun);
+    function katana() {
+      var k = new THREE.Group();
+      var blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 0.02), metal);
+      blade.position.y = 0.45; k.add(blade);
+      var edge = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.9, 0.024), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.9 }));
+      edge.position.set(-0.018, 0.45, 0); k.add(edge);
+      var tip = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.12, 4), metal); tip.position.y = 0.95; k.add(tip);
+      var guard = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.07), gold); guard.position.y = -0.01; k.add(guard);
+      var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.22, 8), wrap); handle.position.y = -0.13; k.add(handle);
+      var pommel = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), gold); pommel.position.y = -0.25; k.add(pommel);
+      return k;
     }
+    function sai() {
+      var g = new THREE.Group();
+      var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.5, 8), metal); shaft.position.y = 0.3; g.add(shaft);
+      var tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.1, 6), metal); tip.position.y = 0.6; g.add(tip);
+      var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.16, 10), wrap); handle.position.y = -0.02; g.add(handle);
+      var ball = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), metal); ball.position.y = -0.11; g.add(ball);
+      var cross = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.026, 0.04), dark); cross.position.y = 0.08; g.add(cross);
+      [-1, 1].forEach(function (s) {
+        var prong = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.18, 6), metal);
+        prong.position.set(s * 0.07, 0.16, 0); prong.rotation.z = -s * 0.13; g.add(prong);
+        var pt = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.05, 6), metal); pt.position.set(s * 0.083, 0.26, 0); pt.rotation.z = -s * 0.13; g.add(pt);
+      });
+      return g;
+    }
+    function boStaff() {
+      var g = new THREE.Group();
+      var shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.7, 12), wood); g.add(shaft);
+      [-0.83, 0.83].forEach(function (y) { var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.08, 10), dark); cap.position.y = y; g.add(cap); });
+      [-0.25, 0.25].forEach(function (y) { var grip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 10), wrap); grip.position.y = y; g.add(grip); });
+      return g;
+    }
+    function nunStick() {
+      var s = new THREE.Group();
+      var body = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.3, 10), wood); s.add(body);
+      var c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 10), dark); c1.position.y = 0.15; s.add(c1);
+      var c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 10), dark); c2.position.y = -0.15; s.add(c2);
+      return s;
+    }
+
+    if (kind === "katana") {
+      var kR = katana(); var kL = katana();
+      var sheath = new THREE.Group();
+      for (var i = 0; i < 2; i++) {
+        var saya = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.8, 10), dark);
+        saya.position.set(i === 0 ? -0.13 : 0.13, 0.12, 0.42);
+        saya.rotation.z = (i === 0 ? 1 : -1) * 0.6; saya.rotation.x = 0.25;
+        sheath.add(saya);
+      }
+      return { held: kR, heldL: kL, sheath: sheath };
+    }
+    if (kind === "sai") { return { held: sai(), heldL: sai(), sheath: null }; }
+    if (kind === "bo") {
+      var held = boStaff();
+      var spare = boStaff(); spare.scale.setScalar(1);
+      var sh = new THREE.Group(); spare.rotation.z = Math.PI / 2 - 0.3; spare.rotation.x = 0.12; spare.position.set(0, 0.15, 0.46); sh.add(spare);
+      return { held: held, heldL: null, sheath: sh, twoHand: true };
+    }
+    // nunchaku
+    var nun = new THREE.Group();
+    var a = nunStick(); a.position.set(0, 0, 0); nun.add(a);
+    var b = nunStick(); b.position.set(0.12, -0.28, 0.05); b.rotation.z = -0.7; nun.add(b);
+    var chainMat = mats.dark;
+    for (var li = 0; li < 4; li++) {
+      var link = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.007, 6, 10), chainMat);
+      link.position.set(0.03 + li * 0.025, -0.16 - li * 0.03, 0.01);
+      link.rotation.y = Math.PI / 2; nun.add(link);
+    }
+    return { held: nun, heldL: null, sheath: null };
   }
 
-  function createTurtle3D(maskColorHex, turtleId) {
-    maskColorHex = maskColorHex == null ? 0x2f6bff : maskColorHex;
-    var letter = ({ leo: "L", raph: "R", don: "D", mikey: "M" })[turtleId] || "L";
+  function createTurtle(turtleId) {
+    var def = TURTLE_DEF[turtleId] || TURTLE_DEF.leo;
+    var maskHex = def.mask;
 
     var root = new THREE.Group();
-    var rootBob = new THREE.Group();
-    root.add(rootBob);
+    var frame = new THREE.Group();   // static: aligns feet to y=0 + scales to ~1.5
+    root.add(frame);
+    var bob = new THREE.Group();     // animated bob
+    frame.add(bob);
 
-    // Classic cartoon green (olive + bright accents)
-    var skin = new THREE.MeshStandardMaterial({ color: 0x4ecf3a, roughness: 0.52, metalness: 0.04 });
-    var skinDark = new THREE.MeshStandardMaterial({ color: 0x2f9a28, roughness: 0.62 });
-    var skinLight = new THREE.MeshStandardMaterial({ color: 0x7ae05a, roughness: 0.48 });
-    var shellMat = shellScuteMat(0xffffff);
-    var shellRim = new THREE.MeshStandardMaterial({ color: 0x3a1f0c, roughness: 0.85 });
-    var scuteRaised = new THREE.MeshStandardMaterial({ color: 0x8a5228, roughness: 0.7, metalness: 0.05 });
-    var scuteDark = new THREE.MeshStandardMaterial({ color: 0x4a2810, roughness: 0.8 });
-    var platMat = new THREE.MeshStandardMaterial({ color: 0xffe7b0, roughness: 0.42 });
-    var platLine = new THREE.MeshStandardMaterial({ color: 0xc9a46a, roughness: 0.55 });
-    var maskMat = new THREE.MeshStandardMaterial({
-      color: maskColorHex, roughness: 0.45, metalness: 0.08,
-      emissive: maskColorHex, emissiveIntensity: 0.08
-    });
-    var maskDark = new THREE.MeshStandardMaterial({ color: maskColorHex, roughness: 0.55 });
-    var white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-    var pupil = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.15 });
-    var beltMat = new THREE.MeshStandardMaterial({ color: 0x2c1810, roughness: 0.75 });
-    var goldMat = new THREE.MeshStandardMaterial({ color: 0xffd24a, roughness: 0.28, metalness: 0.75 });
-    var beakMat = new THREE.MeshStandardMaterial({ color: 0x3aa828, roughness: 0.55 });
+    // ---- materials ----
+    var skin = new THREE.MeshStandardMaterial({ color: 0x5ec648, roughness: 0.5, metalness: 0.02, emissive: 0x1f5416, emissiveIntensity: 0.28 });
+    var skinDark = new THREE.MeshStandardMaterial({ color: 0x3f9e30, roughness: 0.58, emissive: 0x184010, emissiveIntensity: 0.22 });
+    var skinLight = new THREE.MeshStandardMaterial({ color: 0x86e35f, roughness: 0.46, emissive: 0x2c6a20, emissiveIntensity: 0.25 });
+    var shellMat = new THREE.MeshStandardMaterial({ map: shellTexture(), color: 0xffffff, roughness: 0.62, metalness: 0.04 });
+    var shellRim = new THREE.MeshStandardMaterial({ color: 0x2f6a1e, roughness: 0.72 });
+    var scute = new THREE.MeshStandardMaterial({ color: 0x5f9e38, roughness: 0.6 });
+    var plastron = new THREE.MeshStandardMaterial({ color: 0xf6e2ac, roughness: 0.44, emissive: 0x6a5522, emissiveIntensity: 0.16 });
+    var plastronLine = new THREE.MeshStandardMaterial({ color: 0xcaa668, roughness: 0.55 });
+    var maskMat = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.4, metalness: 0.06, emissive: maskHex, emissiveIntensity: 0.35 });
+    var maskDark = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.5, emissive: maskHex, emissiveIntensity: 0.18 });
+    var eyeWhiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 90, specular: 0x999999, emissive: 0x222222 });
+    var pupilMat = new THREE.MeshPhongMaterial({ color: 0x0b0b12, shininess: 120, specular: 0x445577 });
+    var shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    var mouthMat = new THREE.MeshStandardMaterial({ color: 0x7a2a2a, roughness: 0.5 });
+    var beltMat = new THREE.MeshStandardMaterial({ color: 0x3a2412, roughness: 0.7 });
+    var goldMat = new THREE.MeshStandardMaterial({ color: 0xffcf3f, roughness: 0.28, metalness: 0.75, emissive: 0x5a3d00, emissiveIntensity: 0.25 });
+    var inkMat = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.5 });
 
-    // ----- torso: stocky ninja turtle -----
-    var torso = new THREE.Group();
-    torso.position.y = 0.72;
-    rootBob.add(torso);
-
-    var body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 22), skin);
-    body.scale.set(1.08, 1.05, 0.92);
-    torso.add(body);
-    // pecs / chest hint
-    var pecL = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), skinLight);
-    pecL.position.set(-0.16, 0.12, -0.32); pecL.scale.set(1.1, 0.7, 0.55); torso.add(pecL);
-    var pecR = pecL.clone(); pecR.position.x = 0.16; torso.add(pecR);
-
-    // cream plastron (belly shell) — iconic
-    var plastron = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.62), platMat);
-    plastron.rotation.x = Math.PI;
-    plastron.position.set(0, -0.02, -0.3);
-    plastron.scale.set(1.2, 1.45, 0.5);
-    torso.add(plastron);
-    // plastron panel seams
-    [[0.14, 0.1], [0.0, 0.0], [-0.14, -0.1]].forEach(function (yy, idx) {
-      var seam = new THREE.Mesh(new THREE.BoxGeometry(0.48 - idx * 0.04, 0.018, 0.02), platLine);
-      seam.position.set(0, yy[0], -0.48);
-      torso.add(seam);
-    });
-    var midSeam = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.42, 0.02), platLine);
-    midSeam.position.set(0, 0.02, -0.48);
-    torso.add(midSeam);
-
-    // ----- carapace shell with raised scutes -----
-    var shell = new THREE.Group();
-    shell.position.set(0, 0.12, 0.34);
-    torso.add(shell);
-    var dome = new THREE.Mesh(new THREE.SphereGeometry(0.62, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), shellMat);
-    dome.rotation.x = Math.PI / 2;
-    dome.scale.set(1.2, 1.05, 1.35);
-    shell.add(dome);
-    // thick shell rim (marginal scutes)
-    var rim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.09, 12, 32), shellRim);
-    rim.rotation.x = Math.PI / 2;
-    rim.position.z = -0.02;
-    shell.add(rim);
-    // raised hexagonal scutes — readable silhouette
-    var centerScute = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.08, 6), scuteRaised);
-    centerScute.rotation.x = Math.PI / 2;
-    centerScute.position.set(0, 0.08, 0.5);
-    shell.add(centerScute);
-    var centerEdge = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.015, 6, 6), scuteDark);
-    centerEdge.rotation.x = Math.PI / 2;
-    centerEdge.position.copy(centerScute.position);
-    centerEdge.position.z += 0.02;
-    shell.add(centerEdge);
-    for (var p = 0; p < 6; p++) {
-      var ang = (p / 6) * Math.PI * 2 + Math.PI / 6;
-      var scute = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.07, 6), p % 2 ? scuteDark : scuteRaised);
-      scute.rotation.x = Math.PI / 2 - 0.4;
-      scute.rotation.z = ang;
-      scute.position.set(Math.cos(ang) * 0.34, Math.sin(ang) * 0.24 + 0.05, 0.4);
-      shell.add(scute);
-    }
-    // side spikes / rim bumps (classic cartoon shell edge)
-    for (var rb = 0; rb < 10; rb++) {
-      var bang = (rb / 10) * Math.PI * 2;
-      var bump = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), shellRim);
-      bump.position.set(Math.cos(bang) * 0.6, Math.sin(bang) * 0.48, 0.04);
-      shell.add(bump);
-    }
-
-    // ----- belt + letter buckle (L/R/D/M) -----
-    var belt = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.05, 8, 28), beltMat);
-    belt.rotation.x = Math.PI / 2;
-    belt.position.y = -0.22;
-    torso.add(belt);
-    var buckle = makeBeltLetter(letter, goldMat);
-    buckle.position.set(0, -0.22, -0.54);
-    buckle.scale.setScalar(1.15);
-    torso.add(buckle);
-
-    // ----- head: big, masked, beaky -----
-    var head = new THREE.Group();
-    head.position.set(0, 0.68, -0.22);
-    torso.add(head);
-
-    var skull = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 22), skin);
-    skull.scale.set(1.08, 0.92, 1.02);
-    head.add(skull);
-    // cheeks / jaw
-    var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), skinDark);
-    jaw.position.set(0, -0.14, -0.12);
-    jaw.scale.set(1.35, 0.7, 1.0);
-    head.add(jaw);
-    // snout / beak — classic turtle muzzle
-    var snout = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), beakMat);
-    snout.position.set(0, -0.08, -0.34);
-    snout.scale.set(1.2, 0.72, 1.15);
-    head.add(snout);
-    var nostrils = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), skinDark);
-    nostrils.position.set(-0.045, -0.02, -0.48); head.add(nostrils);
-    var nostrils2 = nostrils.clone(); nostrils2.position.x = 0.045; head.add(nostrils2);
-
-    // thick eye-mask wrap (fabric band — classic TMNT, not a box)
-    var maskBand = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.2, 32, 1, true), maskMat);
-    maskBand.rotation.x = Math.PI / 2;
-    maskBand.position.set(0, 0.09, 0);
-    head.add(maskBand);
-    // soft fabric cheeks of the mask (spheres, not a box)
-    var maskCheekL = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), maskMat);
-    maskCheekL.position.set(-0.28, 0.08, -0.22);
-    maskCheekL.scale.set(0.85, 0.7, 0.9);
-    head.add(maskCheekL);
-    var maskCheekR = maskCheekL.clone();
-    maskCheekR.position.x = 0.28;
-    head.add(maskCheekR);
-    // thin mask strip across brow
-    var browGeo = THREE.CapsuleGeometry
-      ? new THREE.CapsuleGeometry(0.05, 0.42, 4, 10)
-      : new THREE.CylinderGeometry(0.05, 0.05, 0.5, 10);
-    var brow = new THREE.Mesh(browGeo, maskDark);
-    brow.rotation.z = Math.PI / 2;
-    brow.position.set(0, 0.16, -0.34);
-    head.add(brow);
-    // knot at back of head
-    var knot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), maskDark);
-    knot.position.set(0, 0.06, 0.36);
-    head.add(knot);
-
-    // long flowing bandana tails
-    var bandL = new THREE.Group();
-    bandL.position.set(-0.14, 0.05, 0.34);
-    head.add(bandL);
-    var bandR = new THREE.Group();
-    bandR.position.set(0.14, 0.05, 0.34);
-    head.add(bandR);
-    for (var b = 0; b < 6; b++) {
-      var tw = 0.14 - b * 0.016;
-      var segL = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.045, 0.18), b % 2 ? maskDark : maskMat);
-      segL.position.set(-0.05 - b * 0.012, -b * 0.04, 0.1 + b * 0.14);
-      segL.rotation.y = -0.18;
-      bandL.add(segL);
-      var segR = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.045, 0.18), b % 2 ? maskDark : maskMat);
-      segR.position.set(0.05 + b * 0.012, -b * 0.04, 0.1 + b * 0.14);
-      segR.rotation.y = 0.18;
-      bandR.add(segR);
-    }
-
-    // big white cartoon eyes sitting IN the mask openings
-    var eyeLG = new THREE.Group(); eyeLG.position.set(-0.16, 0.09, -0.42); head.add(eyeLG);
-    var eyeRG = new THREE.Group(); eyeRG.position.set(0.16, 0.09, -0.42); head.add(eyeRG);
-    var eyeWhiteL = new THREE.Mesh(new THREE.SphereGeometry(0.135, 16, 12), white);
-    eyeWhiteL.scale.set(1.2, 1.4, 0.5);
-    eyeLG.add(eyeWhiteL);
-    var eyeWhiteR = eyeWhiteL.clone();
-    eyeRG.add(eyeWhiteR);
-    // almond mask-hole rim
-    var rimL = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.022, 8, 22), maskDark);
-    rimL.position.z = 0.02; rimL.scale.set(1.05, 1.25, 1); eyeLG.add(rimL);
-    var rimR = rimL.clone(); eyeRG.add(rimR);
-    var pupL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), pupil);
-    pupL.position.set(0.015, -0.01, -0.055); eyeLG.add(pupL);
-    var pupR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), pupil);
-    pupR.position.set(-0.015, -0.01, -0.055); eyeRG.add(pupR);
-    var shine = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), white);
-    var sh1 = shine.clone(); sh1.position.set(-0.035, 0.04, -0.07); eyeLG.add(sh1);
-    var sh2 = shine.clone(); sh2.position.set(-0.035, 0.04, -0.07); eyeRG.add(sh2);
-
-    // smile / mouth under snout
-    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.016, 6, 14, Math.PI), pupil);
-    smile.position.set(0, -0.18, -0.42);
-    smile.rotation.set(Math.PI, 0, 0);
-    head.add(smile);
-
-    // ----- muscular arms with pads + 3 fingers -----
-    function makeArm(side) {
-      var upper = limbSeg(0.13, 0.42, skin);
-      upper.position.set(side * 0.58, 0.28, 0.02);
-      upper.rotation.z = side * 0.35;
-      torso.add(upper);
-      var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), skinDark);
-      shoulder.position.set(0, 0.04, 0);
-      upper.add(shoulder);
-      var bicep = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), skinLight);
-      bicep.position.set(0, -0.18, 0);
-      bicep.scale.set(1.1, 0.85, 1.05);
-      upper.add(bicep);
-      var elbowPad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat);
-      elbowPad.position.y = -0.42;
-      upper.add(elbowPad);
-      var fore = limbSeg(0.11, 0.36, skin);
-      fore.position.y = -0.42;
-      upper.add(fore);
-      var fist = makeThreeFingerHand(skin, maskMat);
-      fist.position.y = -0.4;
-      fist.scale.setScalar(1.15);
-      fore.add(fist);
-      return { upper: upper, fore: fore, fist: fist };
-    }
-    var leftArm = makeArm(-1);
-    var rightArm = makeArm(1);
-
-    // ----- thick legs + 3 toes -----
+    // ================= LEGS (stubby) =================
     function makeLeg(side) {
-      var thigh = limbSeg(0.14, 0.34, skin);
-      thigh.position.set(side * 0.26, -0.48, 0.04);
-      rootBob.add(thigh);
-      var thighBulk = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), skinDark);
-      thighBulk.position.set(0, -0.12, 0);
-      thighBulk.scale.set(1.15, 0.9, 1.1);
-      thigh.add(thighBulk);
-      var kneePad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat);
-      kneePad.position.y = -0.34;
-      thigh.add(kneePad);
-      var shin = limbSeg(0.12, 0.3, skin);
-      shin.position.y = -0.34;
-      thigh.add(shin);
-      var foot = makeThreeToeFoot(skin, maskMat);
-      foot.position.set(0, -0.34, -0.04);
-      foot.scale.setScalar(1.15);
-      shin.add(foot);
+      var thigh = limbSeg(0.15, 0.13, 0.3, skin);
+      thigh.position.set(side * 0.22, 0.55, 0.02);
+      addOutline(thigh.userData.limbMesh, 1.08);
+      bob.add(thigh);
+      var kneePad = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), maskMat);
+      kneePad.position.y = -0.3; thigh.add(kneePad);
+      var shin = limbSeg(0.13, 0.12, 0.28, skin);
+      shin.position.y = -0.3; addOutline(shin.userData.limbMesh, 1.08); thigh.add(shin);
+      var foot = threeToeFoot(skin, maskMat);
+      foot.position.set(0, -0.28, -0.02); shin.add(foot);
       return { thigh: thigh, shin: shin, foot: foot };
     }
-    var leftLeg = makeLeg(-1);
-    var rightLeg = makeLeg(1);
+    var legL = makeLeg(-1), legR = makeLeg(1);
 
-    var parts = {
-      rootBob: rootBob,
-      head: head,
-      torso: torso,
-      shell: shell,
-      leftArm: leftArm.upper,
-      rightArm: rightArm.upper,
-      leftFore: leftArm.fore,
-      rightFore: rightArm.fore,
-      leftLeg: leftLeg.thigh,
-      rightLeg: rightLeg.thigh,
-      leftShin: leftLeg.shin,
-      rightShin: rightLeg.shin,
-      bandL: bandL,
-      bandR: bandR,
-      eyeL: eyeLG,
-      eyeR: eyeRG,
-      fistL: leftArm.fist,
-      fistR: rightArm.fist
+    // ================= TORSO =================
+    var torso = new THREE.Group();
+    torso.position.y = 0.95;
+    bob.add(torso);
+
+    var body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 26, 22), skin);
+    body.scale.set(1.05, 1.12, 0.92); addOutline(body, 1.05); torso.add(body);
+
+    // cream plastron (belly)
+    var plas = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.6), plastron);
+    plas.rotation.x = Math.PI; plas.position.set(0, 0.02, -0.28); plas.scale.set(1.05, 1.35, 0.62);
+    torso.add(plas);
+    [0.22, 0.07, -0.08, -0.22].forEach(function (yy, idx) {
+      var seam = new THREE.Mesh(new THREE.BoxGeometry(0.46 - Math.abs(idx - 1.5) * 0.06, 0.016, 0.02), plastronLine);
+      seam.position.set(0, yy, -0.46); torso.add(seam);
+    });
+    var midSeam = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.5, 0.02), plastronLine);
+    midSeam.position.set(0, 0, -0.47); torso.add(midSeam);
+
+    // carapace shell
+    var shell = new THREE.Group(); shell.position.set(0, 0.06, 0.32); torso.add(shell);
+    var dome = new THREE.Mesh(new THREE.SphereGeometry(0.58, 26, 18, 0, Math.PI * 2, 0, Math.PI * 0.6), shellMat);
+    dome.rotation.x = Math.PI / 2; dome.scale.set(1.15, 1.0, 1.3);
+    var domeOut = new THREE.Mesh(dome.geometry, outlineMat()); domeOut.scale.setScalar(1.05); domeOut.userData.noShadow = true; dome.add(domeOut);
+    shell.add(dome);
+    var rim = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.1, 12, 30), shellRim);
+    rim.rotation.x = Math.PI / 2; rim.position.z = -0.04; shell.add(rim);
+    var centerScute = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.09, 6), scute);
+    centerScute.rotation.x = Math.PI / 2; centerScute.position.set(0, 0.06, 0.46); shell.add(centerScute);
+    for (var p = 0; p < 6; p++) {
+      var ang = (p / 6) * Math.PI * 2 + Math.PI / 6;
+      var sc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.08, 6), scute);
+      sc.rotation.x = Math.PI / 2 - 0.35; sc.rotation.z = ang;
+      sc.position.set(Math.cos(ang) * 0.33, Math.sin(ang) * 0.24 + 0.04, 0.38); shell.add(sc);
+    }
+    for (var rb = 0; rb < 10; rb++) {
+      var ba = (rb / 10) * Math.PI * 2;
+      var bump = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), shellRim);
+      bump.position.set(Math.cos(ba) * 0.58, Math.sin(ba) * 0.46, 0.0); shell.add(bump);
+    }
+
+    // belt + buckle
+    var belt = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.055, 8, 26), beltMat);
+    belt.rotation.x = Math.PI / 2; belt.position.y = -0.3; belt.scale.set(1.02, 1, 0.92); torso.add(belt);
+    var buckle = beltLetter(def.letter, goldMat, inkMat);
+    buckle.position.set(0, -0.3, -0.5); torso.add(buckle);
+
+    // ================= HEAD (big & cute) =================
+    var head = new THREE.Group();
+    head.position.set(0, 0.62, -0.06); torso.add(head);
+
+    var skull = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 24), skin);
+    skull.scale.set(1.12, 1.0, 1.05); addOutline(skull, 1.05); head.add(skull);
+    // chubby cheeks
+    var cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), skinLight);
+    cheekL.position.set(-0.26, -0.12, -0.24); cheekL.scale.set(0.9, 0.8, 0.9); head.add(cheekL);
+    var cheekR = cheekL.clone(); cheekR.position.x = 0.26; head.add(cheekR);
+    // snout / beak
+    var snout = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), skinDark);
+    snout.position.set(0, -0.1, -0.38); snout.scale.set(1.2, 0.8, 1.0); head.add(snout);
+    var nL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), inkMat); nL.position.set(-0.045, -0.07, -0.47); head.add(nL);
+    var nR = nL.clone(); nR.position.x = 0.045; head.add(nR);
+
+    // mask band wrapping the eyes
+    var band = new THREE.Mesh(new THREE.CylinderGeometry(0.415, 0.415, 0.26, 30, 1, true), maskMat);
+    band.rotation.x = Math.PI / 2; band.position.set(0, 0.1, 0.02); band.scale.set(1.03, 1, 1.06); head.add(band);
+    // brow strip
+    var brow = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.045, 8, 20, Math.PI * 1.1), maskDark);
+    brow.rotation.set(Math.PI / 2 + 0.25, 0, 0); brow.position.set(0, 0.2, -0.18); head.add(brow);
+    // knot at back
+    var knot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), maskMat); knot.position.set(0, 0.12, 0.38); head.add(knot);
+    var knotL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), maskDark); knotL.position.set(-0.06, 0.12, 0.42); head.add(knotL);
+    var knotR = knotL.clone(); knotR.position.x = 0.06; head.add(knotR);
+
+    // two flowing knotted tails
+    function makeTail(sideX) {
+      var tail = new THREE.Group();
+      tail.position.set(sideX, 0.12, 0.4);
+      var segs = [];
+      var prev = tail;
+      for (var i = 0; i < 5; i++) {
+        var seg = new THREE.Group();
+        seg.position.set(0, 0, 0.14);
+        var w = 0.16 - i * 0.02;
+        var m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.15), i % 2 ? maskDark : maskMat);
+        m.position.z = 0.075; seg.add(m);
+        prev.add(seg); prev = seg; segs.push(seg);
+      }
+      tail.userData.segs = segs;
+      return tail;
+    }
+    var tailL = makeTail(-0.1), tailR = makeTail(0.1);
+    head.add(tailL); head.add(tailR);
+
+    // HUGE glossy eyes
+    function makeEye(sideX) {
+      var eye = new THREE.Group();
+      eye.position.set(sideX, 0.11, -0.32);
+      var wht = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 16), eyeWhiteMat);
+      wht.scale.set(1.05, 1.35, 0.85); eye.add(wht);
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.03, 10, 22), maskDark);
+      rim.scale.set(1.02, 1.32, 1); rim.position.z = -0.06; eye.add(rim);
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), pupilMat);
+      pupil.position.set(-sideX * 0.15, -0.02, -0.09); pupil.scale.set(1, 1.15, 0.8); eye.add(pupil);
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), new THREE.MeshBasicMaterial({ color: 0x1a2e6b }));
+      iris.position.set(-sideX * 0.15, -0.02, -0.115); iris.scale.set(1, 1.1, 0.5); eye.add(iris);
+      var shine1 = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), shineMat);
+      shine1.position.set(-sideX * 0.15 - 0.04, 0.05, -0.15); eye.add(shine1);
+      var shine2 = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), shineMat);
+      shine2.position.set(-sideX * 0.15 + 0.03, -0.05, -0.15); eye.add(shine2);
+      return eye;
+    }
+    var eyeL = makeEye(-0.16), eyeR = makeEye(0.16);
+    head.add(eyeL); head.add(eyeR);
+
+    // gentle smile
+    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 16, Math.PI), mouthMat);
+    smile.position.set(0, -0.2, -0.34); smile.rotation.set(Math.PI + 0.15, 0, 0); head.add(smile);
+
+    // ================= ARMS =================
+    function makeArm(side) {
+      var upper = limbSeg(0.13, 0.11, 0.34, skin);
+      upper.position.set(side * 0.5, 1.18, 0.0);
+      upper.rotation.z = side * 0.32; addOutline(upper.userData.limbMesh, 1.08); bob.add(upper);
+      var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), skinDark);
+      shoulder.position.y = 0.03; upper.add(shoulder);
+      var elbowPad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat);
+      elbowPad.position.y = -0.34; upper.add(elbowPad);
+      var fore = limbSeg(0.11, 0.09, 0.3, skin);
+      fore.position.y = -0.34; addOutline(fore.userData.limbMesh, 1.08); upper.add(fore);
+      var fist = threeFingerHand(skin, maskMat);
+      fist.position.y = -0.32; fore.add(fist);
+      return { upper: upper, fore: fore, fist: fist };
+    }
+    var armL = makeArm(-1), armR = makeArm(1);
+
+    // ================= WEAPON =================
+    var wmats = {
+      metal: new THREE.MeshStandardMaterial({ color: 0xeef2f7, roughness: 0.2, metalness: 0.9 }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x454b54, roughness: 0.35, metalness: 0.7 }),
+      wrap: new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.85 }),
+      gold: goldMat,
+      wood: new THREE.MeshStandardMaterial({ color: 0x8a5220, roughness: 0.65 })
     };
-
-    attachTurtleWeapon(parts, turtleId);
+    var w = buildWeapon(def.weapon, wmats);
+    if (w.held) {
+      var held = w.held;
+      if (def.weapon === "katana") { held.scale.setScalar(1.12); held.rotation.set(-0.12, 0, -0.6); held.position.y = 0.03; }
+      else if (def.weapon === "sai") { held.scale.setScalar(1.15); held.rotation.set(-0.1, 0, -0.42); held.position.y = 0.02; }
+      else if (def.weapon === "bo") { held.scale.setScalar(1.05); held.rotation.set(0.12, 0, 0.5); held.position.set(0.02, -0.05, 0); }
+      else if (def.weapon === "nunchaku") { held.scale.setScalar(1.15); held.rotation.set(0.1, 0, -0.35); held.position.y = 0.05; }
+      armR.fist.add(held);
+    }
+    if (w.heldL) {
+      var hl = w.heldL;
+      if (def.weapon === "katana") { hl.scale.setScalar(1.12); hl.rotation.set(-0.12, 0, 0.6); hl.position.y = 0.03; }
+      else { hl.scale.setScalar(1.15); hl.rotation.set(-0.1, 0, 0.42); hl.position.y = 0.02; }
+      armL.fist.add(hl);
+    }
+    if (w.sheath) shell.add(w.sheath);
+    if (w.twoHand) { armL.upper.rotation.z = 0.55; armL.fore.rotation.x = 0.9; }
 
     shadowify(root);
-    root.userData.parts = parts;
+
+    // ---- align feet to y=0 and scale to ~1.5 tall ----
+    var box = new THREE.Box3().setFromObject(root);
+    var h = box.max.y - box.min.y;
+    var s = 1.5 / h;
+    frame.scale.setScalar(s);
+    box = new THREE.Box3().setFromObject(root);
+    frame.position.y = -box.min.y;
+
     root.userData.type = "turtle";
-    root.userData.turtleId = turtleId || null;
-    root.userData.anim = { attack: 0, blink: 0 };
+    root.userData.turtleId = turtleId;
+    root.userData.anim = { action: 0 };
+    root.userData.glowMats = [skin, skinDark, skinLight, maskMat];
+    root.userData.parts = {
+      bob: bob, torso: torso, head: head, shell: shell,
+      armL: armL.upper, armR: armR.upper, foreL: armL.fore, foreR: armR.fore,
+      legL: legL.thigh, legR: legR.thigh, shinL: legL.shin, shinR: legR.shin,
+      tailL: tailL, tailR: tailR, eyeL: eyeL, eyeR: eyeR,
+      fistL: armL.fist, fistR: armR.fist
+    };
+    // baseline rotations for restoration
+    root.userData.base = {
+      armLz: armL.upper.rotation.z, armRz: armR.upper.rotation.z,
+      foreLx: armL.fore.rotation.x, foreRx: armR.fore.rotation.x
+    };
     return root;
+  }
+
+  function flutterTails(p, t, amp, freq) {
+    [p.tailL, p.tailR].forEach(function (tail, ti) {
+      if (!tail || !tail.userData.segs) return;
+      tail.userData.segs.forEach(function (seg, i) {
+        var ph = t * freq + i * 0.7 + ti * 1.4;
+        seg.rotation.x = Math.sin(ph) * amp * (0.5 + i * 0.15);
+        seg.rotation.y = Math.cos(ph * 0.8) * amp * 0.6 * (0.4 + i * 0.15);
+      });
+    });
   }
 
   function animateTurtleIdle(group, t) {
     var p = group.userData.parts; if (!p) return;
-    var breath = Math.sin(t * 2.0) * 0.035;
-    p.rootBob.position.y = breath;
-    p.torso.scale.y = 1 + breath * 0.4;
-    p.head.rotation.y = Math.sin(t * 0.85) * 0.4;
-    p.head.rotation.z = Math.sin(t * 0.65) * 0.1;
+    var b = group.userData.base;
+    var breath = Math.sin(t * 2.0) * 0.03;
+    p.bob.position.y = breath;
+    p.torso.scale.y = 1 + breath * 0.5;
+    p.torso.rotation.set(0, 0, 0);
+    p.head.rotation.y = Math.sin(t * 0.8) * 0.32;
+    p.head.rotation.z = Math.sin(t * 0.6) * 0.08;
     p.head.rotation.x = Math.sin(t * 1.1) * 0.05;
-    p.leftArm.rotation.z = 0.4 + Math.sin(t * 1.4) * 0.1;
-    p.rightArm.rotation.z = -0.4 - Math.sin(t * 1.4) * 0.1;
-    p.leftArm.rotation.x = Math.sin(t * 1.15) * 0.18;
-    p.rightArm.rotation.x = -Math.sin(t * 1.15) * 0.18;
-    // lively bandana flutter
-    p.bandL.rotation.x = Math.sin(t * 3.4) * 0.45;
-    p.bandR.rotation.x = Math.sin(t * 3.4 + 1.2) * 0.45;
-    p.bandL.rotation.z = 0.25 + Math.sin(t * 2.4) * 0.35;
-    p.bandR.rotation.z = -0.25 - Math.sin(t * 2.4 + 0.7) * 0.35;
-    p.bandL.rotation.y = Math.sin(t * 2.0) * 0.2;
-    p.bandR.rotation.y = -Math.sin(t * 2.0 + 0.5) * 0.2;
-    var blink = (Math.sin(t * 0.65) > 0.93) ? 0.12 : 1;
+    p.armL.rotation.z = b.armLz + Math.sin(t * 1.4) * 0.08;
+    p.armR.rotation.z = b.armRz - Math.sin(t * 1.4) * 0.08;
+    p.armL.rotation.x = Math.sin(t * 1.2) * 0.12;
+    p.armR.rotation.x = -Math.sin(t * 1.2) * 0.12;
+    p.legL.rotation.x = 0; p.legR.rotation.x = 0;
+    p.shinL.rotation.x = 0; p.shinR.rotation.x = 0;
+    flutterTails(p, t, 0.4, 3.2);
+    var blink = (Math.sin(t * 0.7) > 0.94) ? 0.14 : 1;
     if (p.eyeL) p.eyeL.scale.y = blink;
     if (p.eyeR) p.eyeR.scale.y = blink;
   }
 
+  function animateTurtleAction(group, k) {
+    // k: 0..1 progress of a swing burst
+    var p = group.userData.parts; if (!p) return;
+    var b = group.userData.base;
+    var swing = Math.sin(k * Math.PI);
+    p.armR.rotation.x = -1.9 * swing;
+    p.foreR.rotation.x = b.foreRx - 0.8 * swing;
+    p.armL.rotation.x = 0.8 * swing;
+    p.armL.rotation.z = b.armLz + 0.3 * swing;
+    p.armR.rotation.z = b.armRz;
+    p.torso.rotation.y = -0.5 * swing;
+    p.torso.rotation.z = 0.1 * swing;
+    p.head.rotation.y = 0.35 * swing;
+    p.bob.position.y = 0.14 * swing;
+    flutterTails(group.userData.parts, k * 10, 0.7, 8);
+  }
+
   function animateTurtleRun(group, t) {
     var p = group.userData.parts; if (!p) return;
-    var a = group.userData.anim || (group.userData.anim = { attack: 0 });
-    if (a.attack > 0) {
-      animateTurtleAttack(group, 1 - a.attack);
-      a.attack = Math.max(0, a.attack - 0.05);
+    var a = group.userData.anim || (group.userData.anim = { action: 0 });
+    if (a.action > 0) {
+      animateTurtleAction(group, 1 - a.action);
+      a.action = Math.max(0, a.action - 0.045);
       return;
     }
-    var f = 14;
-    var s = Math.sin(t * f);
-    var c = Math.cos(t * f);
-    var sHard = Math.sign(s) * Math.pow(Math.abs(s), 0.7);
+    var b = group.userData.base;
+    var f = 13;
+    var s = Math.sin(t * f), c = Math.cos(t * f);
+    var sH = Math.sign(s) * Math.pow(Math.abs(s), 0.7);
 
-    p.rootBob.position.y = Math.abs(s) * 0.2;
-    p.rootBob.rotation.z = c * 0.06;
-    p.torso.rotation.z = sHard * 0.14;
-    p.torso.rotation.x = -0.25;
-    p.torso.rotation.y = c * 0.1;
-    p.head.rotation.x = 0.14 + Math.abs(s) * 0.05;
-    p.head.rotation.y = -c * 0.22;
-    p.head.rotation.z = sHard * -0.06;
+    p.bob.position.y = Math.abs(s) * 0.16;
+    p.bob.rotation.z = c * 0.05;
+    p.torso.rotation.z = sH * 0.1;
+    p.torso.rotation.x = -0.18;
+    p.torso.rotation.y = c * 0.08;
+    p.head.rotation.x = 0.1 + Math.abs(s) * 0.04;
+    p.head.rotation.y = -c * 0.16;
+    p.head.rotation.z = sH * -0.05;
 
-    p.leftArm.rotation.x = sHard * 1.4;
-    p.rightArm.rotation.x = -sHard * 1.4;
-    p.leftArm.rotation.z = 0.25 + Math.max(0, s) * 0.18;
-    p.rightArm.rotation.z = -0.25 - Math.max(0, -s) * 0.18;
-    p.leftFore.rotation.x = 0.55 + Math.max(0, s) * 0.9;
-    p.rightFore.rotation.x = 0.55 + Math.max(0, -s) * 0.9;
+    p.armL.rotation.x = sH * 1.3;
+    p.armR.rotation.x = -sH * 1.3;
+    p.armL.rotation.z = b.armLz;
+    p.armR.rotation.z = b.armRz;
+    p.foreL.rotation.x = b.foreLx + 0.5 + Math.max(0, s) * 0.8;
+    p.foreR.rotation.x = b.foreRx + 0.5 + Math.max(0, -s) * 0.8;
 
-    p.leftLeg.rotation.x = -sHard * 1.2;
-    p.rightLeg.rotation.x = sHard * 1.2;
-    p.leftShin.rotation.x = 0.45 + Math.max(0, -s) * 1.0;
-    p.rightShin.rotation.x = 0.45 + Math.max(0, s) * 1.0;
+    p.legL.rotation.x = -sH * 1.1;
+    p.legR.rotation.x = sH * 1.1;
+    p.shinL.rotation.x = 0.4 + Math.max(0, -s) * 0.9;
+    p.shinR.rotation.x = 0.4 + Math.max(0, s) * 0.9;
 
-    // bandanas whip in the wind while running
-    p.bandL.rotation.x = c * 1.1 + 0.3;
-    p.bandR.rotation.x = -c * 1.1 + 0.3;
-    p.bandL.rotation.y = s * 0.65;
-    p.bandR.rotation.y = s * 0.65;
-    p.bandL.rotation.z = 0.35 + Math.sin(t * f * 0.7) * 0.35;
-    p.bandR.rotation.z = -0.35 - Math.sin(t * f * 0.7 + 0.4) * 0.35;
-
+    flutterTails(p, t, 0.5, f * 0.6);
     if (p.eyeL) p.eyeL.scale.y = 1;
     if (p.eyeR) p.eyeR.scale.y = 1;
   }
 
-  function animateTurtleAttack(group, t01) {
-    var p = group.userData.parts; if (!p) return;
-    var k = Math.sin(Math.min(1, Math.max(0, t01)) * Math.PI);
-    p.rightArm.rotation.x = -1.7 * k;
-    p.rightFore.rotation.x = -0.85 * k;
-    p.leftArm.rotation.x = 0.7 * k;
-    p.torso.rotation.y = -0.45 * k;
-    p.head.rotation.y = 0.3 * k;
-    p.rootBob.position.y = 0.12 * k;
-  }
-
-  function triggerAttack(group) {
+  function triggerTurtleAction(group) {
     if (!group.userData.anim) group.userData.anim = {};
-    group.userData.anim.attack = 1;
+    group.userData.anim.action = 1;
   }
 
-  // ---------- broccoli ----------
+  function setTurtleGlow(group, hexOrNull) {
+    var mats = group.userData.glowMats; if (!mats) return;
+    mats.forEach(function (m) {
+      if (hexOrNull == null) {
+        m.emissive.setHex(m.userData._baseEmissive != null ? m.userData._baseEmissive : m.emissive.getHex());
+        if (m.userData._baseEmissiveInt != null) m.emissiveIntensity = m.userData._baseEmissiveInt;
+      } else {
+        if (m.userData._baseEmissive == null) { m.userData._baseEmissive = m.emissive.getHex(); m.userData._baseEmissiveInt = m.emissiveIntensity; }
+        m.emissive.setHex(hexOrNull);
+        m.emissiveIntensity = 0.85;
+      }
+    });
+  }
 
-  function createBroccoli3D(variant) {
-    variant = variant || "scout";
+  // =====================================================================
+  //  FOES (friendly veggies)
+  // =====================================================================
+
+  function createFoe(type) {
+    type = type || "scout";
     var g = new THREE.Group();
     var bob = new THREE.Group();
     g.add(bob);
-    var floretColor = 0x2f9b2f, stalkColor = 0xd8e6a8, scale = 1, emissive = 0x000000;
-    if (variant === "bomber") { floretColor = 0x7a9a2a; emissive = 0x551010; }
-    if (variant === "ninja") { floretColor = 0x15401c; stalkColor = 0x3a4a3a; }
-    if (variant === "boss") { floretColor = 0x276b26; scale = 2.35; }
 
-    var floretMat = new THREE.MeshStandardMaterial({ color: floretColor, roughness: 0.8, emissive: emissive, emissiveIntensity: 0.4, flatShading: true });
-    var stalkMat = new THREE.MeshStandardMaterial({ color: stalkColor, roughness: 0.75 });
-    var eyeW = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    var eyeB = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    var scale = 1, floretHex = 0x3aa62f, stalkHex = 0xd7e6a0, emissive = 0x0a2a08;
+    if (type === "ninja") { floretHex = 0x2b7a24; }
+    if (type === "bomber") { floretHex = 0xe5432b; }
+    if (type === "boss") { floretHex = 0x2f8f28; scale = 2.3; }
 
-    var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 0.45, 12), stalkMat);
-    stalk.position.y = 0.22; bob.add(stalk);
-    var core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), floretMat);
-    core.position.y = 0.72; bob.add(core);
-    var mini = new THREE.IcosahedronGeometry(0.17, 0);
-    [[0.34,0.78,0.12],[-0.3,0.75,-0.08],[0.05,1.0,0.22],[-0.12,1.02,-0.18],[0.22,0.58,-0.28],[-0.22,0.6,0.25]].forEach(function (p) {
-      var m = new THREE.Mesh(mini, floretMat); m.position.set(p[0], p[1], p[2]); bob.add(m);
-    });
-    var eL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), eyeW); eL.position.set(-0.14, 0.72, -0.36); bob.add(eL);
-    var eR = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), eyeW); eR.position.set(0.14, 0.72, -0.36); bob.add(eR);
-    var pL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), eyeB); pL.position.set(-0.14, 0.7, -0.44); bob.add(pL);
-    var pR = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), eyeB); pR.position.set(0.14, 0.7, -0.44); bob.add(pR);
-    var browL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.03), eyeB); browL.position.set(-0.14, 0.84, -0.4); browL.rotation.z = 0.45; bob.add(browL);
-    var browR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.03), eyeB); browR.position.set(0.14, 0.84, -0.4); browR.rotation.z = -0.45; bob.add(browR);
+    var eyeW = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80, specular: 0x888888 });
+    var eyeB = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 100, specular: 0x445 });
+    var browMat = new THREE.MeshStandardMaterial({ color: 0x123309, roughness: 0.7 });
+    var footMat = new THREE.MeshStandardMaterial({ color: stalkHex, roughness: 0.7 });
 
-    var footMat = stalkMat;
-    var f1 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), footMat); f1.position.set(-0.16, 0.06, 0.1); bob.add(f1);
-    var f2 = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), footMat); f2.position.set(0.16, 0.06, 0.1); bob.add(f2);
-
-    if (variant === "boss") {
-      var spikeMat = new THREE.MeshStandardMaterial({ color: 0x1a331a, metalness: 0.35, roughness: 0.45 });
-      [[0.5,0.9,0],[ -0.5,0.9,0],[0,1.25,0],[0,0.75,0.5],[0,0.75,-0.5]].forEach(function (d) {
-        var sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.38, 8), spikeMat);
-        sp.position.set(d[0], d[1], d[2]);
-        bob.add(sp);
+    if (type === "bomber") {
+      // cute round tomato
+      var tomatoMat = new THREE.MeshStandardMaterial({ color: floretHex, roughness: 0.4, emissive: 0x3a0a04, emissiveIntensity: 0.25 });
+      var body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 22, 18), tomatoMat);
+      body.scale.set(1.1, 0.95, 1.1); body.position.y = 0.55; addOutline(body, 1.05); bob.add(body);
+      var leaf = new THREE.MeshStandardMaterial({ color: 0x3a9e30, roughness: 0.6 });
+      for (var i = 0; i < 5; i++) {
+        var a = (i / 5) * Math.PI * 2;
+        var lf = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 5), leaf);
+        lf.position.set(Math.cos(a) * 0.12, 1.02, Math.sin(a) * 0.12); lf.rotation.z = Math.cos(a) * 0.5; lf.rotation.x = Math.sin(a) * 0.5;
+        bob.add(lf);
+      }
+      var stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.18, 8), leaf); stem.position.y = 1.06; bob.add(stem);
+      // fuse spark
+      var fuse = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd23a }));
+      fuse.position.y = 1.18; bob.add(fuse);
+      bob.userData.fuse = fuse;
+      // eyes
+      addFace(bob, 0.5, 0.5, 0.14, eyeW, eyeB, browMat, true);
+      addFeet(bob, footMat);
+    } else {
+      // broccoli
+      var floretMat = new THREE.MeshStandardMaterial({ color: floretHex, roughness: 0.7, emissive: emissive, emissiveIntensity: 0.3, flatShading: true });
+      var stalkMat = new THREE.MeshStandardMaterial({ color: stalkHex, roughness: 0.72 });
+      var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.24, 0.5, 12), stalkMat);
+      stalk.position.y = 0.25; addOutline(stalk, 1.06); bob.add(stalk);
+      var core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), floretMat);
+      core.position.y = 0.78; addOutline(core, 1.05); bob.add(core);
+      var mini = new THREE.IcosahedronGeometry(0.18, 0);
+      [[0.36, 0.84, 0.12], [-0.32, 0.8, -0.08], [0.06, 1.08, 0.22], [-0.14, 1.1, -0.18], [0.24, 0.62, -0.3], [-0.24, 0.64, 0.27]].forEach(function (q) {
+        var m = new THREE.Mesh(mini, floretMat); m.position.set(q[0], q[1], q[2]); bob.add(m);
       });
-    }
-    if (variant === "ninja") {
-      var band = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-      band.rotation.x = Math.PI / 2; band.position.y = 0.72; bob.add(band);
+      addFace(bob, 0.78, 0.14, 0.38, eyeW, eyeB, browMat, false);
+      addFeet(bob, stalkMat);
+
+      if (type === "ninja") {
+        var bandMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6 });
+        var bandeau = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.14, 18, 1, true), bandMat);
+        bandeau.rotation.x = Math.PI / 2; bandeau.position.y = 0.82; bob.add(bandeau);
+        [-1, 1].forEach(function (sx) {
+          var tl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.24), bandMat);
+          tl.position.set(sx * 0.1, 0.82, 0.5); tl.rotation.y = sx * 0.3; bob.add(tl);
+        });
+      }
+      if (type === "boss") {
+        var spikeMat = new THREE.MeshStandardMaterial({ color: 0x1f4a17, roughness: 0.5, metalness: 0.2 });
+        [[0.5, 0.95, 0], [-0.5, 0.95, 0], [0, 1.3, 0], [0, 0.8, 0.5], [0, 0.8, -0.5], [0.38, 1.15, 0.2], [-0.38, 1.15, 0.2]].forEach(function (d) {
+          var sp = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.4, 7), spikeMat);
+          sp.position.set(d[0], d[1], d[2]);
+          sp.lookAt(d[0] * 3, d[1] + 1, d[2] * 3);
+          bob.add(sp);
+        });
+        // crown scowl brows already added; make bigger angry brows
+      }
     }
 
     g.scale.setScalar(scale);
     shadowify(g);
-    g.userData.type = "broccoli";
-    g.userData.variant = variant;
+    g.userData.type = type;
     g.userData.parts = { bob: bob };
     return g;
-  }
 
-  function animateBroccoli(group, t, variant) {
-    var bob = group.userData.parts && group.userData.parts.bob;
-    if (!bob) return;
-    variant = variant || group.userData.variant || "scout";
-    if (variant === "ninja") {
-      bob.rotation.y += 0.12;
-      bob.position.y = Math.abs(Math.sin(t * 8)) * 0.15;
-    } else if (variant === "boss") {
-      bob.position.y = Math.sin(t * 2) * 0.08;
-      bob.rotation.z = Math.sin(t * 1.5) * 0.08;
-    } else {
-      bob.position.y = Math.abs(Math.sin(t * 6)) * 0.18;
-      bob.rotation.y = Math.sin(t * 3) * 0.25;
+    function addFace(parent, eyeY, faceOffY, zFront, ew, eb, bm, small) {
+      var eR = small ? 0.12 : 0.11;
+      var eL = new THREE.Mesh(new THREE.SphereGeometry(eR, 14, 12), ew); eL.position.set(-0.15, eyeY, -zFront); eL.scale.set(1, 1.15, 0.7); parent.add(eL);
+      var eRr = eL.clone(); eRr.position.x = 0.15; parent.add(eRr);
+      var pL = new THREE.Mesh(new THREE.SphereGeometry(eR * 0.5, 10, 8), eb); pL.position.set(-0.15, eyeY - 0.02, -zFront - 0.07); parent.add(pL);
+      var pR = pL.clone(); pR.position.x = 0.15; parent.add(pR);
+      var sh = new THREE.Mesh(new THREE.SphereGeometry(eR * 0.25, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      var s1 = sh.clone(); s1.position.set(-0.19, eyeY + 0.04, -zFront - 0.1); parent.add(s1);
+      var s2 = sh.clone(); s2.position.set(0.11, eyeY + 0.04, -zFront - 0.1); parent.add(s2);
+      // angry eyebrows
+      var bL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), bm); bL.position.set(-0.15, eyeY + 0.14, -zFront - 0.02); bL.rotation.z = 0.5; parent.add(bL);
+      var bR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), bm); bR.position.set(0.15, eyeY + 0.14, -zFront - 0.02); bR.rotation.z = -0.5; parent.add(bR);
+      // little smile
+      var mouth = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 6, 12, Math.PI), new THREE.MeshStandardMaterial({ color: 0x2a1010 }));
+      mouth.position.set(0, eyeY - 0.16, -zFront - 0.02); mouth.rotation.set(Math.PI + 0.1, 0, 0); parent.add(mouth);
+    }
+    function addFeet(parent, fm) {
+      var f1 = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), fm); f1.position.set(-0.17, 0.07, 0.06); f1.scale.set(1, 0.7, 1.3); parent.add(f1);
+      var f2 = f1.clone(); f2.position.x = 0.17; parent.add(f2);
     }
   }
 
-  // ---------- pizza ----------
+  function animateFoe(group, t) {
+    var p = group.userData.parts, bob = p && p.bob; if (!bob) return;
+    var type = group.userData.type;
+    if (type === "ninja") {
+      bob.rotation.y += 0.08;
+      bob.position.y = Math.abs(Math.sin(t * 7)) * 0.14;
+    } else if (type === "boss") {
+      bob.position.y = Math.sin(t * 2) * 0.07;
+      bob.rotation.z = Math.sin(t * 1.4) * 0.06;
+      bob.rotation.y = Math.sin(t * 0.8) * 0.15;
+    } else if (type === "bomber") {
+      bob.position.y = Math.abs(Math.sin(t * 8)) * 0.12;
+      if (bob.userData.fuse) { var s = 0.7 + Math.abs(Math.sin(t * 18)) * 0.6; bob.userData.fuse.scale.setScalar(s); }
+    } else {
+      bob.position.y = Math.abs(Math.sin(t * 6)) * 0.16;
+      bob.rotation.y = Math.sin(t * 3) * 0.22;
+    }
+  }
 
-  function createPizza3D(gold) {
+  // =====================================================================
+  //  PIZZA
+  // =====================================================================
+
+  function createPizza(gold) {
     var g = new THREE.Group();
     var spin = new THREE.Group();
     g.add(spin);
-    var crustMat = new THREE.MeshStandardMaterial({
-      color: gold ? 0xffd94a : 0xd39a4a, roughness: 0.7,
-      emissive: gold ? 0xffb800 : 0x000000, emissiveIntensity: gold ? 0.6 : 0, metalness: gold ? 0.4 : 0
-    });
-    var cheeseMat = new THREE.MeshStandardMaterial({
-      color: gold ? 0xfff2a0 : 0xffd066, roughness: 0.5,
-      emissive: gold ? 0xffea70 : 0x000000, emissiveIntensity: gold ? 0.4 : 0
-    });
-    var pepMat = new THREE.MeshStandardMaterial({ color: gold ? 0xffb040 : 0xb02a1a, roughness: 0.5 });
-    spin.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.52, 0.09, 28), crustMat));
-    var cheese = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.045, 28), cheeseMat);
+    var crustMat = new THREE.MeshStandardMaterial({ color: gold ? 0xffd24a : 0xd39a4a, roughness: 0.65, metalness: gold ? 0.45 : 0, emissive: gold ? 0xffa800 : 0x2a1500, emissiveIntensity: gold ? 0.6 : 0.08 });
+    var cheeseMat = new THREE.MeshStandardMaterial({ color: gold ? 0xfff0a0 : 0xffcf5e, roughness: 0.5, emissive: gold ? 0xffe060 : 0x3a2a00, emissiveIntensity: gold ? 0.45 : 0.05 });
+    var pepMat = new THREE.MeshStandardMaterial({ color: gold ? 0xffb84a : 0xc0301c, roughness: 0.45, emissive: gold ? 0xff9020 : 0x200500, emissiveIntensity: gold ? 0.4 : 0 });
+
+    var base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.54, 0.1, 30), crustMat);
+    spin.add(base);
+    var cheese = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.05, 30), cheeseMat);
     cheese.position.y = 0.06; spin.add(cheese);
-    var pepGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.025, 14);
-    [[0,0],[0.2,0.14],[-0.18,0.16],[0.12,-0.22],[-0.24,-0.08],[0.26,-0.06],[-0.05,0.26]].forEach(function (p) {
-      var m = new THREE.Mesh(pepGeo, pepMat); m.position.set(p[0], 0.09, p[1]); spin.add(m);
+    var pepGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.03, 14);
+    [[0, 0], [0.22, 0.15], [-0.2, 0.17], [0.14, -0.24], [-0.26, -0.09], [0.28, -0.07], [-0.06, 0.28]].forEach(function (q) {
+      var m = new THREE.Mesh(pepGeo, pepMat); m.position.set(q[0], 0.1, q[1]); spin.add(m);
     });
-    for (var i = 0; i < 4; i++) {
+    for (var i = 0; i < 5; i++) {
       var blob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), cheeseMat);
-      blob.position.set(Math.cos(i)*0.25, 0.08, Math.sin(i)*0.25);
-      blob.scale.set(1, 0.5, 1);
-      spin.add(blob);
+      blob.position.set(Math.cos(i * 1.3) * 0.28, 0.09, Math.sin(i * 1.3) * 0.28); blob.scale.set(1, 0.5, 1); spin.add(blob);
     }
-    shadowify(g);
-    g.userData.type = gold ? "pizza_gold" : "pizza";
-    g.userData.parts = { spin: spin };
-    g.userData.gold = !!gold;
-    return g;
-  }
-
-  // Cute spin + hover; supports gold pulse
-  function animatePizza(mesh, t) {
-    if (!mesh) return;
-    var spin = mesh.userData.parts && mesh.userData.parts.spin;
-    var target = spin || mesh;
-    var gold = !!(mesh.userData && mesh.userData.gold);
-    target.rotation.y = t * (gold ? 3.6 : 2.2);
-    target.rotation.z = Math.sin(t * 3) * 0.12;
-    target.position.y = Math.sin(t * 4) * 0.08 + (gold ? 0.05 : 0);
     if (gold) {
-      var s = 1 + Math.sin(t * 6) * 0.07;
-      target.scale.set(s, s, s);
+      var star = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 8, 30), new THREE.MeshBasicMaterial({ color: 0xfff2a0, transparent: true, opacity: 0.7 }));
+      star.rotation.x = Math.PI / 2; g.add(star); g.userData.halo = star;
     }
-  }
-
-  // ---------- sewer chunk ----------
-
-  var _brick = null;
-  function brickTex() {
-    if (!_brick) _brick = createSewerTexture();
-    return _brick;
-  }
-
-  function createSewerChunk(zPos, length) {
-    length = length == null ? 20 : length;
-    var g = new THREE.Group();
-    var width = 9, height = 5.2;
-    var base = brickTex();
-    function map(rx, ry) {
-      var t = base.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t;
-    }
-    // Higher contrast tinting per surface
-    var floorMat = new THREE.MeshStandardMaterial({ map: map(length / 3.5, width / 3.5), color: 0xd8cfc4, roughness: 0.95 });
-    var wallMat = new THREE.MeshStandardMaterial({ map: map(length / 3.5, height / 2.5), color: 0xb8a898, roughness: 0.9 });
-    var ceilMat = new THREE.MeshStandardMaterial({ map: map(length / 3.5, width / 3.5), color: 0x6d5d54, roughness: 0.96 });
-
-    var floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.45, length), floorMat);
-    floor.position.y = -0.22; g.add(floor);
-    var left = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, length), wallMat);
-    left.position.set(-width / 2, height / 2, 0); g.add(left);
-    var right = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, length), wallMat);
-    right.position.set(width / 2, height / 2, 0); g.add(right);
-    var arch = new THREE.Mesh(new THREE.CylinderGeometry(width / 2, width / 2, length, 16, 1, true, 0, Math.PI), ceilMat);
-    arch.rotation.z = Math.PI / 2; arch.rotation.y = Math.PI / 2; arch.position.y = height; g.add(arch);
-
-    var pipeMat = new THREE.MeshStandardMaterial({ color: 0x6a7380, roughness: 0.35, metalness: 0.75 });
-    var pipeGeo = new THREE.CylinderGeometry(0.2, 0.2, length, 12);
-    var pL = new THREE.Mesh(pipeGeo, pipeMat); pL.rotation.x = Math.PI / 2; pL.position.set(-width / 2 + 0.45, 3.5, 0); g.add(pL);
-    var pR = new THREE.Mesh(pipeGeo, pipeMat); pR.rotation.x = Math.PI / 2; pR.position.set(width / 2 - 0.45, 3.5, 0); g.add(pR);
-
-    // hanging pipes + drips
-    var hangMat = new THREE.MeshStandardMaterial({ color: 0x555e68, metalness: 0.7, roughness: 0.4 });
-    for (var h = 0; h < 3; h++) {
-      var hz = -length / 2 + 4 + h * (length / 3);
-      var hang = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8), hangMat);
-      hang.position.set((h % 2 ? 1 : -1) * 1.8, 4.2, hz); g.add(hang);
-      var drip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshStandardMaterial({
-        color: 0x7dffb0, emissive: 0x3ecf7a, emissiveIntensity: 1.1, transparent: true, opacity: 0.9
-      }));
-      drip.position.set(hang.position.x, 3.4, hz);
-      drip.userData.drip = true;
-      drip.userData.baseY = 3.4;
-      drip.userData.phase = Math.random() * Math.PI * 2;
-      g.add(drip);
-    }
-
-    // brighter lanterns
-    var lanternMat = new THREE.MeshStandardMaterial({
-      color: 0xfff0b0, emissive: 0xffaa30, emissiveIntensity: 2.2
-    });
-    var lanternCage = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.6, metalness: 0.4 });
-    for (var L = 0; L < 2; L++) {
-      var lz = -length / 2 + 6 + L * (length / 2);
-      [[-1, -width / 2 + 0.4], [1, width / 2 - 0.4]].forEach(function (side) {
-        var lantern = new THREE.Group();
-        var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 10), lanternMat);
-        lantern.add(bulb);
-        var cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.14, 10), lanternCage);
-        cap.position.y = 0.22;
-        lantern.add(cap);
-        var hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 6), lanternCage);
-        hook.position.y = 0.44;
-        lantern.add(hook);
-        lantern.position.set(side[1], 2.7, lz);
-        g.add(lantern);
-        var light = new THREE.PointLight(0xffc060, 1.15, 12, 1.6);
-        light.position.set(side[1], 2.6, lz);
-        g.add(light);
-        // subtle halo billboard
-        var halo = new THREE.Mesh(
-          new THREE.SphereGeometry(0.32, 12, 10),
-          new THREE.MeshBasicMaterial({ color: 0xffc060, transparent: true, opacity: 0.14 })
-        );
-        halo.position.copy(lantern.position);
-        g.add(halo);
-      });
-    }
-
-    // slime puddles
-    var slimeMat = new THREE.MeshStandardMaterial({
-      color: 0x39ff88, emissive: 0x22cc55, emissiveIntensity: 1.0,
-      roughness: 0.25, transparent: true, opacity: 0.8
-    });
-    for (var sp = 0; sp < 2; sp++) {
-      var slime = new THREE.Mesh(new THREE.CircleGeometry(0.9 + Math.random() * 0.5, 22), slimeMat);
-      slime.rotation.x = -Math.PI / 2;
-      slime.position.set((Math.random() - 0.5) * 4, 0.02, (Math.random() - 0.5) * (length - 4));
-      g.add(slime);
-    }
-
-    var grate = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, length), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.65, roughness: 0.45 }));
-    grate.position.y = 0.01; g.add(grate);
-
     shadowify(g);
-    floor.castShadow = false; arch.castShadow = false;
-    g.position.z = zPos;
-    g.userData.type = "sewerChunk";
-    g.userData.length = length;
+    g.userData.type = "pizza";
+    g.userData.gold = !!gold;
+    g.userData.parts = { spin: spin };
     return g;
   }
 
-  function animateSewerChunk(group, t) {
+  function animatePizza(group, t) {
+    var p = group.userData.parts, spin = (p && p.spin) || group;
+    var gold = !!group.userData.gold;
+    spin.rotation.y = t * (gold ? 3.4 : 2.0);
+    spin.rotation.z = Math.sin(t * 3) * 0.1;
+    spin.position.y = Math.sin(t * 4) * 0.07;
+    if (gold) {
+      var s = 1 + Math.sin(t * 6) * 0.06; spin.scale.set(s, s, s);
+      if (group.userData.halo) { group.userData.halo.rotation.z = t * 2; group.userData.halo.scale.setScalar(1 + Math.sin(t * 5) * 0.15); }
+    }
+  }
+
+  // =====================================================================
+  //  GROUND CHUNKS (3 worlds)
+  // =====================================================================
+
+  function createGroundChunk(world, length) {
+    length = length == null ? 20 : length;
+    if (world === 2) return pizzeriaChunk(length);
+    if (world === 3) return rooftopChunk(length);
+    return sewerChunk(length);
+  }
+
+  function repeatMap(base, rx, ry) {
+    var t = base.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t;
+  }
+
+  function sewerChunk(length) {
+    var g = new THREE.Group();
+    var width = 9, height = 5;
+    var base = brickTexture();
+    var floorMat = new THREE.MeshStandardMaterial({ map: repeatMap(base, length / 3.5, width / 3.5), color: 0xbfd8ce, roughness: 0.9 });
+    var wallMat = new THREE.MeshStandardMaterial({ map: repeatMap(base, length / 3.5, height / 2.5), color: 0xaecfc4, roughness: 0.85 });
+    var floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.4, length), floorMat);
+    floor.position.y = -0.2; floor.receiveShadow = true; g.add(floor);
+    [-1, 1].forEach(function (sx) {
+      var wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, length), wallMat);
+      wall.position.set(sx * width / 2, height / 2, 0); wall.receiveShadow = true; g.add(wall);
+    });
+    var arch = new THREE.Mesh(new THREE.CylinderGeometry(width / 2, width / 2, length, 16, 1, true, 0, Math.PI), new THREE.MeshStandardMaterial({ map: repeatMap(base, 4, length / 4), color: 0x88b0a4, roughness: 0.92, side: THREE.BackSide }));
+    arch.rotation.z = Math.PI / 2; arch.rotation.y = Math.PI / 2; arch.position.y = height; g.add(arch);
+    // pipes
+    var pipeMat = new THREE.MeshStandardMaterial({ color: 0x7a95a0, roughness: 0.35, metalness: 0.7 });
+    [-1, 1].forEach(function (sx) {
+      var pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, length, 12), pipeMat);
+      pipe.rotation.x = Math.PI / 2; pipe.position.set(sx * (width / 2 - 0.5), 3.6, 0); g.add(pipe);
+    });
+    // glowing slime drips + lanterns
+    var lanternMat = new THREE.MeshStandardMaterial({ color: 0xbfffe0, emissive: 0x39e79a, emissiveIntensity: 2.4 });
+    var slimeMat = new THREE.MeshStandardMaterial({ color: 0x4dffa0, emissive: 0x2ccf6a, emissiveIntensity: 0.9, transparent: true, opacity: 0.85, roughness: 0.2 });
+    var drips = [];
+    for (var i = 0; i < 3; i++) {
+      var lz = -length / 2 + 4 + i * (length / 3);
+      var sx = (i % 2 ? 1 : -1);
+      var lantern = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), lanternMat);
+      lantern.position.set(sx * (width / 2 - 0.6), 2.9, lz); g.add(lantern);
+      var light = new THREE.PointLight(0x66ffc0, 1.1, 13, 1.6);
+      light.position.copy(lantern.position); g.add(light);
+      var halo = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 10), new THREE.MeshBasicMaterial({ color: 0x66ffc0, transparent: true, opacity: 0.16 }));
+      halo.position.copy(lantern.position); g.add(halo);
+      var drip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), slimeMat);
+      drip.position.set((Math.random() - 0.5) * 3, 3.2, lz);
+      drip.userData.drip = true; drip.userData.baseY = 3.2; drip.userData.phase = Math.random() * Math.PI * 2;
+      g.add(drip); drips.push(drip);
+    }
+    // slime puddles
+    for (var s = 0; s < 2; s++) {
+      var puddle = new THREE.Mesh(new THREE.CircleGeometry(0.9 + Math.random() * 0.4, 20), slimeMat);
+      puddle.rotation.x = -Math.PI / 2; puddle.position.set((Math.random() - 0.5) * 4, 0.02, (Math.random() - 0.5) * (length - 4)); g.add(puddle);
+    }
+    g.userData.type = "ground"; g.userData.world = 1; g.userData.length = length;
+    return g;
+  }
+
+  function pizzeriaChunk(length) {
+    var g = new THREE.Group();
+    var width = 9, height = 5;
+    var floorMat = new THREE.MeshStandardMaterial({ map: repeatMap(checkerTexture(), length / 3, width / 3), roughness: 0.5 });
+    var floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.4, length), floorMat);
+    floor.position.y = -0.2; floor.receiveShadow = true; g.add(floor);
+    var wallMat = new THREE.MeshStandardMaterial({ color: 0xf6c98a, roughness: 0.8 });
+    var wainMat = new THREE.MeshStandardMaterial({ color: 0xc9793a, roughness: 0.7 });
+    [-1, 1].forEach(function (sx) {
+      var wall = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, length), wallMat);
+      wall.position.set(sx * width / 2, height / 2, 0); wall.receiveShadow = true; g.add(wall);
+      var wain = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.4, length), wainMat);
+      wain.position.set(sx * width / 2, 0.7, 0); g.add(wain);
+      // counters with pots
+      var counterMat = new THREE.MeshStandardMaterial({ color: 0xded4c4, roughness: 0.6 });
+      var counter = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, length * 0.9), counterMat);
+      counter.position.set(sx * (width / 2 - 0.7), 0.5, 0); counter.receiveShadow = true; g.add(counter);
+      var potMat = new THREE.MeshStandardMaterial({ color: 0x333840, roughness: 0.4, metalness: 0.6 });
+      for (var pj = 0; pj < 2; pj++) {
+        var pz = -length / 3 + pj * (length / 2);
+        var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.26, 0.34, 16), potMat);
+        pot.position.set(sx * (width / 2 - 0.7), 1.17, pz); g.add(pot);
+        var cheese = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffdf7a, roughness: 0.4, emissive: 0x6a5010, emissiveIntensity: 0.2 }));
+        cheese.position.set(sx * (width / 2 - 0.7), 1.34, pz); g.add(cheese);
+      }
+    });
+    // ceiling with hanging lamps
+    var ceil = new THREE.Mesh(new THREE.BoxGeometry(width, 0.3, length), new THREE.MeshStandardMaterial({ color: 0xe8b878, roughness: 0.8 }));
+    ceil.position.y = height; g.add(ceil);
+    for (var i = 0; i < 3; i++) {
+      var lz = -length / 2 + 4 + i * (length / 3);
+      var lampMat = new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xffcf60, emissiveIntensity: 2.2 });
+      var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12, 0, Math.PI * 2, 0, Math.PI / 2), lampMat);
+      lamp.rotation.x = Math.PI; lamp.position.set(0, height - 0.6, lz); g.add(lamp);
+      var cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), new THREE.MeshStandardMaterial({ color: 0x222 })); cord.position.set(0, height - 0.3, lz); g.add(cord);
+      var light = new THREE.PointLight(0xffd070, 1.2, 14, 1.6); light.position.set(0, height - 0.8, lz); g.add(light);
+    }
+    g.userData.type = "ground"; g.userData.world = 2; g.userData.length = length;
+    return g;
+  }
+
+  function rooftopChunk(length) {
+    var g = new THREE.Group();
+    var width = 9;
+    var roofMat = new THREE.MeshStandardMaterial({ color: 0x556080, roughness: 0.85 });
+    var floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.4, length), roofMat);
+    floor.position.y = -0.2; floor.receiveShadow = true; g.add(floor);
+    // gravel specks / vents
+    var ventMat = new THREE.MeshStandardMaterial({ color: 0x8894b0, roughness: 0.5, metalness: 0.4 });
+    for (var v = 0; v < 3; v++) {
+      var vz = -length / 2 + 5 + v * (length / 3);
+      var vent = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), ventMat);
+      vent.position.set((v % 2 ? 1 : -1) * 3, 0.25, vz); g.add(vent);
+    }
+    // parapet walls
+    var parapetMat = new THREE.MeshStandardMaterial({ color: 0x46506e, roughness: 0.8 });
+    [-1, 1].forEach(function (sx) {
+      var wall = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.0, length), parapetMat);
+      wall.position.set(sx * width / 2, 0.5, 0); g.add(wall);
+    });
+    // city skyline billboards (both sides)
+    var skyMat = new THREE.MeshBasicMaterial({ map: repeatMap(skylineTexture(), length / 22, 1), transparent: false });
+    [-1, 1].forEach(function (sx) {
+      var sky = new THREE.Mesh(new THREE.PlaneGeometry(length, 5), skyMat);
+      sky.position.set(sx * (width / 2 + 3), 2.2, 0); sky.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+      sky.userData.noShadow = true; g.add(sky);
+    });
+    // moon glow (far ahead)
+    var moon = new THREE.Mesh(new THREE.SphereGeometry(1.2, 20, 16), new THREE.MeshBasicMaterial({ color: 0xfff7d8 }));
+    moon.position.set(3, 6, -length / 2 - 2); g.add(moon);
+    var moonLight = new THREE.PointLight(0xcfe0ff, 0.6, 40, 1.2); moonLight.position.copy(moon.position); g.add(moonLight);
+    // string lights across
+    var bulbColors = [0xff5a5a, 0xffd23a, 0x5affa0, 0x5ab8ff, 0xff8adf];
+    for (var s = 0; s < 3; s++) {
+      var sz = -length / 2 + 5 + s * (length / 3);
+      var wire = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, width, 5), new THREE.MeshStandardMaterial({ color: 0x222 }));
+      wire.rotation.z = Math.PI / 2; wire.position.set(0, 2.4, sz); g.add(wire);
+      for (var bI = 0; bI < 7; bI++) {
+        var col = bulbColors[bI % bulbColors.length];
+        var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.8 }));
+        bulb.position.set(-width / 2 + 0.6 + bI * (width - 1.2) / 6, 2.3 - Math.sin(bI / 6 * Math.PI) * 0.15, sz);
+        bulb.userData.twinkle = true; bulb.userData.phase = Math.random() * 6.28; g.add(bulb);
+      }
+    }
+    g.userData.type = "ground"; g.userData.world = 3; g.userData.length = length;
+    return g;
+  }
+
+  function animateGroundChunk(group, t) {
+    if (!group) return;
     group.traverse(function (o) {
       if (o.userData && o.userData.drip) {
         o.position.y = o.userData.baseY - ((t * 1.5 + o.userData.phase) % 1.8);
         o.scale.setScalar(0.7 + 0.3 * Math.sin(t * 6 + o.userData.phase));
+      } else if (o.userData && o.userData.twinkle) {
+        var m = o.material; if (m) m.emissiveIntensity = 1.2 + Math.abs(Math.sin(t * 3 + o.userData.phase)) * 1.2;
       }
     });
   }
 
-  // ---------- lane markers ----------
+  // =====================================================================
+  //  LANE GLOW
+  // =====================================================================
 
-  function createLaneMarkers() {
+  function createLaneGlow(laneXs) {
+    laneXs = laneXs || [-2.2, 0, 2.2];
     var g = new THREE.Group();
-    var lanes = [-2.2, 0, 2.2];
-    var stripLen = 60, stripW = 0.16;
-    lanes.forEach(function (x, idx) {
-      var color = (idx === 1) ? 0x66ffa8 : 0x66c8ff;
-      var mat = new THREE.MeshBasicMaterial({
-        color: color, transparent: true, opacity: 0.55
-      });
-      var strip = new THREE.Mesh(new THREE.BoxGeometry(stripW, 0.02, stripLen), mat);
-      strip.position.set(x, 0.03, 0);
-      g.add(strip);
-      // dashed centerline glow dots
-      for (var i = 0; i < 12; i++) {
-        var dot = new THREE.Mesh(
-          new THREE.BoxGeometry(stripW * 0.9, 0.015, 0.35),
-          new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 })
-        );
-        dot.position.set(x, 0.04, -stripLen / 2 + i * (stripLen / 12) + 1);
-        g.add(dot);
+    var stripLen = 60;
+    laneXs.forEach(function (x, idx) {
+      var color = (idx === 1) ? 0x7dffbf : 0x66c8ff;
+      var strip = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, stripLen), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.45 }));
+      strip.position.set(x, 0.03, 0); g.add(strip);
+      for (var i = 0; i < 14; i++) {
+        var dot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.4), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 }));
+        dot.position.set(x, 0.045, -stripLen / 2 + i * (stripLen / 14) + 1); g.add(dot);
       }
     });
-    g.userData.type = "laneMarkers";
+    g.userData.type = "laneGlow";
     return g;
   }
 
-  // ---------- speed lines ----------
+  // =====================================================================
+  //  SPEED LINES
+  // =====================================================================
 
   function createSpeedLines() {
     var g = new THREE.Group();
-    var count = 26;
-    var mat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.55
-    });
-    for (var i = 0; i < count; i++) {
-      var line = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 1.6 + Math.random() * 1.4), mat);
-      line.userData.baseX = (Math.random() - 0.5) * 7.5;
+    var mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    for (var i = 0; i < 26; i++) {
+      var line = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 1.6 + Math.random() * 1.4), mat.clone());
+      line.userData.baseX = (Math.random() - 0.5) * 8;
       line.userData.baseY = 0.4 + Math.random() * 3.6;
       line.userData.offset = Math.random() * 60;
-      line.userData.baseSpeed = 0.7 + Math.random() * 1.6;
-      line.userData.baseLen = line.geometry.parameters.depth;
+      line.userData.speed = 0.7 + Math.random() * 1.6;
       line.position.set(line.userData.baseX, line.userData.baseY, 0);
       g.add(line);
     }
-    g.userData.type = "speedLines";
-    g.userData.range = 40;
-    g.visible = false;
+    g.userData.type = "speedLines"; g.userData.range = 40; g.visible = false;
     return g;
   }
 
-  function animateSpeedLines(group, t, speed) {
+  function animateSpeedLines(group, t, intensity) {
     if (!group || group.userData.type !== "speedLines") return;
     var range = group.userData.range || 40;
-    var spd = Math.max(0, speed == null ? 1 : speed);
-    // Fade in/out by target speed
-    var vis = spd > 0.05;
-    group.visible = vis;
-    if (!vis) return;
-    var opacityBoost = Math.min(1, spd / 3);
+    var spd = Math.max(0, intensity == null ? 1 : intensity);
+    group.visible = spd > 0.05;
+    if (!group.visible) return;
+    var boost = Math.min(1, spd / 3);
     group.children.forEach(function (line) {
       var u = line.userData;
-      var z = (((t * (10 + spd * 12) * u.baseSpeed) + u.offset) % range) - range / 2;
+      var z = (((t * (10 + spd * 12) * u.speed) + u.offset) % range) - range / 2;
       line.position.z = z;
-      // slight lateral wobble
       line.position.x = u.baseX + Math.sin(t * 2 + u.offset) * 0.05;
-      // stretch by speed
-      var stretch = 1 + spd * 0.6;
-      line.scale.z = stretch;
-      if (line.material && line.material.opacity !== undefined) {
-        line.material.opacity = 0.35 * opacityBoost + 0.2;
-      }
+      line.scale.z = 1 + spd * 0.6;
+      if (line.material) line.material.opacity = 0.3 * boost + 0.2;
     });
   }
 
-  // ---------- FX: sparks / confetti / collect ring ----------
+  // =====================================================================
+  //  FX
+  // =====================================================================
 
-  function createHitSpark() {
-    var g = new THREE.Group();
-    var mat = new THREE.MeshStandardMaterial({ color: 0xffe27a, emissive: 0xffaa00, emissiveIntensity: 1.5 });
-    for (var i = 0; i < 10; i++) {
-      var m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), mat);
-      var a = Math.random() * Math.PI * 2;
-      m.position.set(Math.cos(a) * 0.2, Math.random() * 0.4, Math.sin(a) * 0.2);
-      m.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 4, 2 + Math.random() * 3, (Math.random() - 0.5) * 4);
-      g.add(m);
-    }
-    g.userData.life = 0.45;
-    g.userData.type = "fx";
-    return g;
-  }
-
-  function createConfettiBurst(color) {
-    var g = new THREE.Group();
-    var mat = new THREE.MeshStandardMaterial({ color: color || 0x3ecf7a, emissive: color || 0x3ecf7a, emissiveIntensity: 0.6 });
-    for (var i = 0; i < 14; i++) {
-      var m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.02), mat);
-      m.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 5, 3 + Math.random() * 4, (Math.random() - 0.5) * 5);
-      g.add(m);
-    }
-    g.userData.life = 0.7;
-    g.userData.type = "fx";
-    return g;
-  }
-
-  // Expanding torus "ding!" ring for pickups
-  function createCollectRing(color) {
+  function createFX(kind, color) {
+    kind = kind || "spark";
     color = color == null ? 0xffe27a : color;
     var g = new THREE.Group();
-    var mat = new THREE.MeshBasicMaterial({
-      color: color, transparent: true, opacity: 1.0
-    });
-    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.055, 8, 24), mat);
-    ring.rotation.x = -Math.PI / 2;
-    g.add(ring);
-    // inner sparkle disc
-    var disc = new THREE.Mesh(
-      new THREE.CircleGeometry(0.28, 18),
-      new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
-    );
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.y = 0.005;
-    g.add(disc);
     g.userData.type = "fx";
-    g.userData.ring = { total: 0.5, elapsed: 0, mat: mat, discMat: disc.material };
-    g.userData.life = 0.5;
+    g.userData.kind = kind;
+
+    if (kind === "ring") {
+      var mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+      var ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.05, 8, 24), mat); ring.rotation.x = -Math.PI / 2; g.add(ring);
+      var disc = new THREE.Mesh(new THREE.CircleGeometry(0.28, 18), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+      disc.rotation.x = -Math.PI / 2; disc.position.y = 0.005; g.add(disc);
+      g.userData.ring = { total: 0.5, elapsed: 0, mat: mat, discMat: disc.material };
+      g.userData.life = 0.5;
+      return g;
+    }
+    if (kind === "star") {
+      var starMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+      for (var s = 0; s < 8; s++) {
+        var st = new THREE.Mesh(new THREE.TetrahedronGeometry(0.1), starMat.clone());
+        var a = Math.random() * Math.PI * 2;
+        st.position.set(Math.cos(a) * 0.15, Math.random() * 0.2, Math.sin(a) * 0.15);
+        st.userData.vel = new THREE.Vector3(Math.cos(a) * 2.5, 2 + Math.random() * 2.5, Math.sin(a) * 2.5);
+        st.userData.spin = (Math.random() - 0.5) * 12;
+        g.add(st);
+      }
+      g.userData.life = 0.8;
+      return g;
+    }
+    if (kind === "poof") {
+      var poofMat = new THREE.MeshStandardMaterial({ color: color === 0xffe27a ? 0xdfe6ee : color, transparent: true, opacity: 0.85, roughness: 1 });
+      for (var pI = 0; pI < 7; pI++) {
+        var puff = new THREE.Mesh(new THREE.SphereGeometry(0.12 + Math.random() * 0.1, 8, 6), poofMat.clone());
+        var pa = Math.random() * Math.PI * 2;
+        puff.position.set(Math.cos(pa) * 0.15, 0.1 + Math.random() * 0.15, Math.sin(pa) * 0.15);
+        puff.userData.vel = new THREE.Vector3(Math.cos(pa) * 1.5, 0.8 + Math.random() * 1.2, Math.sin(pa) * 1.5);
+        puff.userData.grow = 1.5 + Math.random();
+        g.add(puff);
+      }
+      g.userData.life = 0.6;
+      return g;
+    }
+    if (kind === "confetti") {
+      var palette = [0xff5a5a, 0xffd23a, 0x5affa0, 0x5ab8ff, 0xff8adf, 0xffffff];
+      for (var i = 0; i < 16; i++) {
+        var col = palette[i % palette.length];
+        var m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.02), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.5 }));
+        m.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 5, 3 + Math.random() * 4, (Math.random() - 0.5) * 5);
+        m.userData.spin = (Math.random() - 0.5) * 14;
+        g.add(m);
+      }
+      g.userData.life = 0.9;
+      return g;
+    }
+    // spark (default)
+    var sparkMat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 1.6 });
+    for (var k = 0; k < 12; k++) {
+      var sp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), sparkMat);
+      var aa = Math.random() * Math.PI * 2;
+      sp.position.set(Math.cos(aa) * 0.15, Math.random() * 0.3, Math.sin(aa) * 0.15);
+      sp.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 4, 2 + Math.random() * 3, (Math.random() - 0.5) * 4);
+      g.add(sp);
+    }
+    g.userData.life = 0.45;
     return g;
   }
 
@@ -1075,7 +1114,6 @@
     if (!group || group.userData.type !== "fx") return false;
     group.userData.life -= dt;
 
-    // Expanding-ring update path
     if (group.userData.ring) {
       var r = group.userData.ring;
       r.elapsed += dt;
@@ -1084,41 +1122,62 @@
       group.scale.set(scale, 1, scale);
       var op = 1 - k;
       if (r.mat) r.mat.opacity = op;
-      if (r.discMat) r.discMat.opacity = 0.55 * op;
+      if (r.discMat) r.discMat.opacity = 0.5 * op;
       return group.userData.life > 0;
     }
 
+    var fade = Math.max(0, group.userData.life);
     group.children.forEach(function (m) {
-      if (!m.userData.vel) return;
-      m.position.addScaledVector(m.userData.vel, dt);
-      m.userData.vel.y -= 9 * dt;
-      m.rotation.x += dt * 8;
-      m.rotation.y += dt * 6;
+      if (m.userData.vel) {
+        m.position.addScaledVector(m.userData.vel, dt);
+        m.userData.vel.y -= 9 * dt;
+        if (m.userData.spin) { m.rotation.x += m.userData.spin * dt; m.rotation.y += m.userData.spin * dt * 0.7; }
+        else { m.rotation.x += dt * 8; m.rotation.y += dt * 6; }
+      }
+      if (m.userData.grow) m.scale.multiplyScalar(1 + m.userData.grow * dt);
+      if (m.material && m.material.transparent && m.material.opacity !== undefined) {
+        m.material.opacity = Math.min(1, fade * 2.2);
+      }
     });
     return group.userData.life > 0;
   }
 
-  // ---------- exports ----------
+  // =====================================================================
+  //  WORLD THEME
+  // =====================================================================
 
-  global.TMNTMeshes = {
-    createTurtle3D: createTurtle3D,
-    createBroccoli3D: createBroccoli3D,
-    createPizza3D: createPizza3D,
-    createSewerChunk: createSewerChunk,
-    createSewerTexture: createSewerTexture,
-    createHitSpark: createHitSpark,
-    createConfettiBurst: createConfettiBurst,
-    createCollectRing: createCollectRing,
-    createLaneMarkers: createLaneMarkers,
-    createSpeedLines: createSpeedLines,
+  function worldTheme(world) {
+    if (world === 2) {
+      return { bg: 0x3a2416, fog: 0x54331c, fogNear: 16, fogFar: 52, hemiSky: 0xffe0b0, hemiGround: 0x5a3418, hemiInt: 1.3, sunColor: 0xfff2d0, sunInt: 1.5 };
+    }
+    if (world === 3) {
+      return { bg: 0x1b2547, fog: 0x243060, fogNear: 18, fogFar: 56, hemiSky: 0xaec4ff, hemiGround: 0x1c2440, hemiInt: 1.15, sunColor: 0xd6e4ff, sunInt: 1.25 };
+    }
+    return { bg: 0x123033, fog: 0x184043, fogNear: 15, fogFar: 48, hemiSky: 0x7fecd6, hemiGround: 0x13363c, hemiInt: 1.2, sunColor: 0xffffff, sunInt: 1.35 };
+  }
+
+  // =====================================================================
+  //  export
+  // =====================================================================
+
+  global.GameArt = {
+    worldTheme: worldTheme,
+    createTurtle: createTurtle,
     animateTurtleIdle: animateTurtleIdle,
     animateTurtleRun: animateTurtleRun,
-    animateTurtleAttack: animateTurtleAttack,
-    animateBroccoli: animateBroccoli,
-    animateSewerChunk: animateSewerChunk,
-    animateSpeedLines: animateSpeedLines,
+    triggerTurtleAction: triggerTurtleAction,
+    setTurtleGlow: setTurtleGlow,
+    createFoe: createFoe,
+    animateFoe: animateFoe,
+    createPizza: createPizza,
     animatePizza: animatePizza,
-    triggerAttack: triggerAttack,
+    createGroundChunk: createGroundChunk,
+    animateGroundChunk: animateGroundChunk,
+    createLaneGlow: createLaneGlow,
+    createSpeedLines: createSpeedLines,
+    animateSpeedLines: animateSpeedLines,
+    createFX: createFX,
     updateFX: updateFX
   };
+
 })(window);
