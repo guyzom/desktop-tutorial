@@ -356,7 +356,7 @@
     }
     const t = TURTLES.find((x) => x.id === turtleId) || TURTLES[0];
     playerMesh = M.createTurtle3D(t.color, t.id);
-    playerMesh.scale.setScalar(1.28);
+    playerMesh.scale.setScalar(1.35);
     // Mesh faces -Z by default (eyes on -Z) = into the tunnel, away from camera
     playerMesh.rotation.y = 0;
     playerMesh.visible = true;
@@ -376,13 +376,14 @@
   function buildShowcase() {
     clearGroup(showcaseRoot);
     showcaseTurtles = [];
-    // Hero lineup facing the camera (meshes face −Z by default; rotate to face cam)
-    const spacing = 2.15;
+    // ¾ hero pose — face + shell + weapons all readable (classic TMNT silhouette)
+    const spacing = 2.35;
     TURTLES.forEach((t, i) => {
       const mesh = M.createTurtle3D(t.color, t.id);
-      mesh.scale.setScalar(1.35);
-      mesh.position.set((i - 1.5) * spacing, 0, 0);
-      mesh.rotation.y = Math.PI;
+      mesh.scale.setScalar(1.4);
+      mesh.position.set((i - 1.5) * spacing, 0, (i % 2) * 0.25);
+      // ~135° so we see mask, letter buckle, shell edge, and weapons
+      mesh.rotation.y = Math.PI * 0.72;
       mesh.userData.orbit = i;
       showcaseRoot.add(mesh);
       showcaseTurtles.push(mesh);
@@ -1016,14 +1017,13 @@
   function updateShowcase(t) {
     showcaseTurtles.forEach((mesh, i) => {
       M.animateTurtleIdle(mesh, t + i * 0.7);
-      // keep facing camera with a slight heroic sway
-      mesh.rotation.y = Math.PI + Math.sin(t * 0.8 + i) * 0.12;
-      mesh.position.y = Math.sin(t * 1.6 + i) * 0.04;
+      // hold ¾ angle with gentle sway — never spin to hide the shell
+      mesh.rotation.y = Math.PI * 0.72 + Math.sin(t * 0.55 + i) * 0.1;
+      mesh.position.y = Math.sin(t * 1.5 + i) * 0.05;
     });
-    // closer hero portrait framing — faces above the CTA
-    camera.position.set(Math.sin(t * 0.15) * 0.45, 2.05, 6.4);
-    camera.lookAt(0, 1.35, 0);
-    worldRoot.position.z = (t * 1.6) % 20;
+    camera.position.set(Math.sin(t * 0.12) * 0.5, 2.0, 6.2);
+    camera.lookAt(0, 1.15, 0);
+    worldRoot.position.z = (t * 1.5) % 20;
   }
 
   function frame() {

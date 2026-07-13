@@ -40,7 +40,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: "Fredoka", 
   pointer-events: none;
 }
 .screen.active { display: flex; }
-#screen-start.active,
+#screen-start.active {
+  pointer-events: auto;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(4,21,15,.55) 0%, rgba(4,21,15,.08) 28%, rgba(4,21,15,.05) 62%, rgba(4,21,15,.65) 100%);
+}
+#screen-start .hero-brand {
+  margin-bottom: 0;
+  text-shadow: 0 4px 18px rgba(0,0,0,.85);
+}
+#screen-start .hero-brand h1 {
+  font-size: clamp(2rem, 8vw, 3.4rem);
+}
+#screen-start .tagline { opacity: .95; }
+#screen-start #btn-start { margin-top: auto; }
 #screen-pick.active,
 #screen-map.active,
 #screen-stickers.active,
