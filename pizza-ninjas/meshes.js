@@ -356,6 +356,7 @@
     var maskDark = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.5, emissive: maskHex, emissiveIntensity: 0.12 });
     var eyeWhiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 90, specular: 0x999999, emissive: 0x1a1a1a });
     var pupilMat = new THREE.MeshPhongMaterial({ color: 0x120d0a, shininess: 120, specular: 0x556677 });
+    var irisMat = new THREE.MeshPhongMaterial({ color: 0x6f89ad, shininess: 34, specular: 0x2a3340, emissive: 0x141c26 });
     var shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     var mouthMat = new THREE.MeshStandardMaterial({ color: 0x6f1c20, roughness: 0.5 });
     var tongueMat = new THREE.MeshStandardMaterial({ color: 0xf07d86, roughness: 0.5 });
@@ -456,15 +457,19 @@
     var nL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), inkMat); nL.position.set(-0.05, -0.09, -0.49); head.add(nL);
     var nR = nL.clone(); nR.position.x = 0.05; head.add(nR);
 
-    // ---- bandana mask: a horizontal headband across the eyes (classic TMNT) ----
-    var band = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.3, 32, 1, true), maskMat);
-    band.position.set(0, 0.14, 0.02); band.scale.set(1.05, 1, 1.06); head.add(band);
-    // centre point between the brows + a soft peak over each eye
-    var maskPeak = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.17, 4), maskMat);
-    maskPeak.position.set(0, 0.32, -0.37); maskPeak.rotation.x = -0.2; head.add(maskPeak);
+    // ---- bandana mask (classic TMNT: arches over the brow, points down the nose) ----
+    var band = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.32, 32, 1, true), maskMat);
+    band.position.set(0, 0.15, 0.02); band.scale.set(1.05, 1, 1.06); head.add(band);
+    // forehead patch — the mask rises up the centre of the brow
+    var foreMask = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 14), maskMat);
+    foreMask.scale.set(1.16, 0.72, 0.55); foreMask.position.set(0, 0.31, -0.33); head.add(foreMask);
+    // downward point between the eyes, onto the bridge of the nose
+    var bridge = new THREE.Mesh(new THREE.ConeGeometry(0.078, 0.22, 4), maskMat);
+    bridge.position.set(0, 0.03, -0.42); bridge.rotation.x = Math.PI - 0.12; head.add(bridge);
+    // soft brow ridge arching over each eye
     [-1, 1].forEach(function (sx) {
-      var brow = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), maskMat);
-      brow.scale.set(1.0, 0.44, 0.5); brow.position.set(sx * 0.18, 0.3, -0.34); brow.rotation.z = sx * 0.28; head.add(brow);
+      var brow = new THREE.Mesh(new THREE.SphereGeometry(0.135, 14, 12), maskMat);
+      brow.scale.set(1.05, 0.5, 0.55); brow.position.set(sx * 0.17, 0.29, -0.33); brow.rotation.z = sx * 0.32; head.add(brow);
     });
     // knot at back + two flowing tails
     var knot = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat); knot.position.set(0, 0.14, 0.4); head.add(knot);
@@ -497,12 +502,14 @@
       eye.position.set(sideX, 0.12, -0.34);
       var wht = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 16), eyeWhiteMat);
       wht.scale.set(1.02, 1.28, 0.9); eye.add(wht);
-      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.092, 16, 14), pupilMat);
-      pupil.position.set(-sideX * 0.12, -0.03, -0.09); pupil.scale.set(1, 1.16, 0.85); eye.add(pupil);
-      var shine1 = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 10), shineMat);
-      shine1.position.set(-sideX * 0.12 - 0.045, 0.06, -0.14); eye.add(shine1);
-      var shine2 = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), shineMat);
-      shine2.position.set(-sideX * 0.12 + 0.035, -0.06, -0.15); eye.add(shine2);
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.089, 16, 14), irisMat);
+      iris.position.set(-sideX * 0.05, -0.02, -0.075); iris.scale.set(1, 1.1, 0.7); eye.add(iris);
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.053, 14, 12), pupilMat);
+      pupil.position.set(-sideX * 0.05, -0.02, -0.12); pupil.scale.set(1, 1.12, 0.7); eye.add(pupil);
+      var shine1 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 10), shineMat);
+      shine1.position.set(-sideX * 0.05 - 0.055, 0.08, -0.14); eye.add(shine1);
+      var shine2 = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 8), shineMat);
+      shine2.position.set(-sideX * 0.05 + 0.04, -0.06, -0.15); eye.add(shine2);
       return eye;
     }
     var eyeL = makeEye(-0.17), eyeR = makeEye(0.17);
@@ -510,9 +517,14 @@
 
     // big open grin
     var mouth = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 14), mouthMat);
-    mouth.scale.set(1.32, 0.66, 0.42); mouth.position.set(0, -0.25, -0.34); head.add(mouth);
+    mouth.scale.set(1.46, 0.64, 0.42); mouth.position.set(0, -0.25, -0.34); head.add(mouth);
+    // upturned smile corners
+    [-1, 1].forEach(function (sx) {
+      var corner = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), skinDark);
+      corner.scale.set(0.8, 0.8, 0.6); corner.position.set(sx * 0.2, -0.21, -0.36); head.add(corner);
+    });
     // upper teeth strip (thin)
-    var teeth = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.032, 0.04), toothMat);
+    var teeth = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.034, 0.04), toothMat);
     teeth.position.set(0, -0.185, -0.45); teeth.rotation.x = 0.12; head.add(teeth);
     // tongue
     var tongue = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), tongueMat);
