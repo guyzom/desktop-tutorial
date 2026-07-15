@@ -41,6 +41,7 @@ https://guyzom.github.io/desktop-tutorial/
 - `meshes.js` — `window.GameArt`: כל המודלים התלת־מימדיים, האנימציות והאפקטים.
 - `assets/` — דיוקני הצבים המצוירים למסך "בוחרים חבר" (שאר הגרפיקה במשחק פרוצדורלית).
 - `game.js` — מנוע המשחק, שליטת מגע, מצלמה דינמית, שלבים, בוסים ושמירה.
+- `postfx.js` — `window.GamePostFX`: צינור פוסט־פרוססינג (bloom, tone-mapping פילמי, ווינייטה) לצד תאורת סביבה (IBL) להחזרי אור על העיניים, הנשקים והשריון.
 - שמירה ב־`localStorage` (`tmnt-pizza-save-v2`): כוכבים, מדבקות, צב נבחר והתקדמות.
 - iPad־friendly: `pixelRatio ≤ 2`, עצירת רינדור כשהלשונית מוסתרת, וכיבוד `safe-area`.
 

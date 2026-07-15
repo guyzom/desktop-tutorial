@@ -206,10 +206,22 @@
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (renderer.outputColorSpace !== undefined) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // filmic tone mapping for a richer, less "flat" look
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 220);
   camera.position.set(0, 3, 7);
+
+  // image-based lighting → real reflections on eyes, metal weapons, shell & plastron
+  let envTex = null;
+  try { envTex = GAr.makeEnvironment && GAr.makeEnvironment(renderer); } catch (_) {}
+  if (envTex) scene.environment = envTex;
+
+  // HDR post-processing (bloom + filmic grade). Falls back to direct render.
+  let post = null;
+  try { post = window.GamePostFX && window.GamePostFX.create(renderer); } catch (_) { post = null; }
 
   // Lights (driven by GameArt.worldTheme)
   const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 1.1);
@@ -217,7 +229,9 @@
   const sun = new THREE.DirectionalLight(0xffffff, 1.5);
   sun.position.set(5, 12, 6);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.02;
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
   sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
   sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
@@ -1000,7 +1014,7 @@
       camera.position.set(0, 4, 10);
       camera.lookAt(0, 1, -5);
     }
-    renderer.render(scene, camera);
+    if (post) post.render(scene, camera); else renderer.render(scene, camera);
   }
 
   function onResize() {
@@ -1008,6 +1022,7 @@
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
+    if (post) post.setSize(w, h);
   }
   window.addEventListener("resize", onResize);
   document.addEventListener("visibilitychange", () => {

@@ -354,9 +354,9 @@
     var plastronLine = new THREE.MeshStandardMaterial({ color: 0xbe8f26, roughness: 0.55 });
     var maskMat = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.38, metalness: 0.04, emissive: maskHex, emissiveIntensity: 0.24 });
     var maskDark = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.5, emissive: maskHex, emissiveIntensity: 0.12 });
-    var eyeWhiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 90, specular: 0x999999, emissive: 0x1a1a1a });
-    var pupilMat = new THREE.MeshPhongMaterial({ color: 0x120d0a, shininess: 120, specular: 0x556677 });
-    var irisMat = new THREE.MeshPhongMaterial({ color: 0x6f89ad, shininess: 34, specular: 0x2a3340, emissive: 0x141c26 });
+    var eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf3f6fb, roughness: 0.12, metalness: 0.0, envMapIntensity: 1.3 });
+    var pupilMat = new THREE.MeshStandardMaterial({ color: 0x0a0a10, roughness: 0.14, metalness: 0.0, envMapIntensity: 1.6 });
+    var irisMat = new THREE.MeshStandardMaterial({ color: 0x6f89ad, roughness: 0.22, metalness: 0.1, emissive: 0x0c1420, emissiveIntensity: 0.3, envMapIntensity: 1.5 });
     var shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     var mouthMat = new THREE.MeshStandardMaterial({ color: 0x6f1c20, roughness: 0.5 });
     var tongueMat = new THREE.MeshStandardMaterial({ color: 0xf07d86, roughness: 0.5 });
@@ -1218,11 +1218,45 @@
   }
 
   // =====================================================================
+  //  ENVIRONMENT (image-based lighting for reflections)
+  // =====================================================================
+
+  function makeEnvironment(renderer) {
+    if (!THREE.PMREMGenerator) return null;
+    var pmrem = new THREE.PMREMGenerator(renderer);
+    var s = new THREE.Scene();
+    // gradient sky dome
+    var sky = new THREE.Mesh(
+      new THREE.SphereGeometry(50, 24, 12),
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: { top: { value: new THREE.Color(0xdfefff) }, mid: { value: new THREE.Color(0x8fb6d8) }, bot: { value: new THREE.Color(0x223142) } },
+        vertexShader: "varying vec3 vp; void main(){ vp = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: "varying vec3 vp; uniform vec3 top; uniform vec3 mid; uniform vec3 bot; void main(){ float h = normalize(vp).y; vec3 c = h > 0.0 ? mix(mid, top, h) : mix(mid, bot, -h); gl_FragColor = vec4(c, 1.0); }"
+      })
+    );
+    s.add(sky);
+    // soft bright panels → shaped highlights on glossy surfaces
+    function panel(w, h, x, y, z, col) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: col }));
+      m.position.set(x, y, z); m.lookAt(0, 0, 0); s.add(m);
+    }
+    panel(22, 22, 0, 34, 2, 0xffffff);       // big soft key overhead
+    panel(16, 26, -26, 8, 14, 0xbfd8ff);     // cool side
+    panel(14, 22, 24, 5, -12, 0xffe6c0);     // warm rim
+    var tex = pmrem.fromScene(s, 0.04).texture;
+    pmrem.dispose();
+    sky.geometry.dispose(); sky.material.dispose();
+    return tex;
+  }
+
+  // =====================================================================
   //  export
   // =====================================================================
 
   global.GameArt = {
     worldTheme: worldTheme,
+    makeEnvironment: makeEnvironment,
     createTurtle: createTurtle,
     animateTurtleIdle: animateTurtleIdle,
     animateTurtleRun: animateTurtleRun,
