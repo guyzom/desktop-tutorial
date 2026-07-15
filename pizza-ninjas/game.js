@@ -714,7 +714,7 @@
       btn.className = "turtle-card";
       btn.dataset.id = t.id;
       btn.innerHTML =
-        '<span class="face" style="--c:#' + t.color.toString(16).padStart(6, "0") + '" data-letter="' + t.letter + '"></span>' +
+        '<img class="portrait" src="assets/' + t.id + '.png" alt="' + t.name + '" draggable="false" />' +
         '<span class="tname">' + t.name + '</span>' +
         '<span class="tsuper">' + t.emoji + " " + t.superName + '</span>';
       btn.addEventListener("click", () => {
