@@ -1,4 +1,4 @@
-# Welcome to GitHub Desktop!
+# ברוכים הבאים 🐢🍕
 
 ריפו עם פרויקטים קטנים וכיפיים.
 
@@ -10,5 +10,5 @@
 
 **לשחק:** https://guyzom.github.io/desktop-tutorial/
 
-פתיחה מקומית: [`pizza-ninjas/index.html`](./pizza-ninjas/index.html)  
+פתיחה מקומית: הריצו שרת סטטי ופתחו את [`pizza-ninjas/index.html`](./pizza-ninjas/index.html)  
 פרטים: [`pizza-ninjas/README.md`](./pizza-ninjas/README.md)

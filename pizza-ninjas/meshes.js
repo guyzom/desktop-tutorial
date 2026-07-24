@@ -72,12 +72,12 @@
     if (_tex.shell) return _tex.shell;
     var c = document.createElement("canvas"); c.width = c.height = 256;
     var ctx = c.getContext("2d");
-    var g = ctx.createRadialGradient(128, 100, 20, 128, 128, 150);
-    g.addColorStop(0, "#7bbf46");
-    g.addColorStop(0.55, "#4f962f");
-    g.addColorStop(1, "#2e6a1e");
+    var g = ctx.createRadialGradient(128, 104, 18, 128, 128, 150);
+    g.addColorStop(0, "#b07d3c");
+    g.addColorStop(0.55, "#875327");
+    g.addColorStop(1, "#5c3617");
     ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
-    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(24,60,16,0.85)";
+    ctx.lineWidth = 6; ctx.strokeStyle = "rgba(46,26,10,0.9)"; ctx.lineJoin = "round";
     function hex(cx, cy, r) {
       ctx.beginPath();
       for (var i = 0; i < 6; i++) {
@@ -86,13 +86,40 @@
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(150,205,110,0.30)"; ctx.fill();
+      var gg = ctx.createRadialGradient(cx, cy - r * 0.3, r * 0.2, cx, cy, r);
+      gg.addColorStop(0, "rgba(214,168,96,0.85)"); gg.addColorStop(1, "rgba(150,104,52,0.65)");
+      ctx.fillStyle = gg; ctx.fill();
       ctx.stroke();
     }
-    hex(128, 120, 46);
-    [[128, 52], [196, 92], [196, 158], [128, 196], [60, 158], [60, 92]].forEach(function (p) { hex(p[0], p[1], 36); });
+    hex(128, 120, 48);
+    [[128, 50], [198, 92], [198, 160], [128, 198], [58, 160], [58, 92]].forEach(function (p) { hex(p[0], p[1], 38); });
     _tex.shell = srgb(new THREE.CanvasTexture(c));
     return _tex.shell;
+  }
+
+  // freckled/spotted green turtle skin
+  function skinTexture() {
+    if (_tex.skin) return _tex.skin;
+    var c = document.createElement("canvas"); c.width = c.height = 256;
+    var ctx = c.getContext("2d");
+    var g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, "#83d24f"); g.addColorStop(1, "#5cae32");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+    // soft mottling
+    for (var m = 0; m < 40; m++) {
+      ctx.fillStyle = "rgba(120,196,74," + (0.05 + Math.random() * 0.12) + ")";
+      ctx.beginPath(); ctx.arc(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 22, 0, Math.PI * 2); ctx.fill();
+    }
+    // freckles (darker green speckles, like the reference art)
+    for (var i = 0; i < 210; i++) {
+      var dark = Math.random() < 0.78;
+      ctx.fillStyle = dark ? "rgba(52,120,30,0.55)" : "rgba(168,224,110,0.5)";
+      var r = 1.2 + Math.random() * 3.4;
+      ctx.beginPath(); ctx.arc(Math.random() * 256, Math.random() * 256, r, 0, Math.PI * 2); ctx.fill();
+    }
+    var t = srgb(new THREE.CanvasTexture(c));
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _tex.skin = t; return t;
   }
 
   function brickTexture() {
@@ -316,34 +343,46 @@
     frame.add(bob);
 
     // ---- materials ----
-    var skin = new THREE.MeshStandardMaterial({ color: 0x5ec648, roughness: 0.5, metalness: 0.02, emissive: 0x1f5416, emissiveIntensity: 0.28 });
-    var skinDark = new THREE.MeshStandardMaterial({ color: 0x3f9e30, roughness: 0.58, emissive: 0x184010, emissiveIntensity: 0.22 });
-    var skinLight = new THREE.MeshStandardMaterial({ color: 0x86e35f, roughness: 0.46, emissive: 0x2c6a20, emissiveIntensity: 0.25 });
-    var shellMat = new THREE.MeshStandardMaterial({ map: shellTexture(), color: 0xffffff, roughness: 0.62, metalness: 0.04 });
-    var shellRim = new THREE.MeshStandardMaterial({ color: 0x2f6a1e, roughness: 0.72 });
-    var scute = new THREE.MeshStandardMaterial({ color: 0x5f9e38, roughness: 0.6 });
-    var plastron = new THREE.MeshStandardMaterial({ color: 0xf6e2ac, roughness: 0.44, emissive: 0x6a5522, emissiveIntensity: 0.16 });
-    var plastronLine = new THREE.MeshStandardMaterial({ color: 0xcaa668, roughness: 0.55 });
-    var maskMat = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.4, metalness: 0.06, emissive: maskHex, emissiveIntensity: 0.35 });
-    var maskDark = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.5, emissive: maskHex, emissiveIntensity: 0.18 });
-    var eyeWhiteMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 90, specular: 0x999999, emissive: 0x222222 });
-    var pupilMat = new THREE.MeshPhongMaterial({ color: 0x0b0b12, shininess: 120, specular: 0x445577 });
+    var skinTex = skinTexture();
+    var skin = new THREE.MeshStandardMaterial({ map: skinTex, color: 0xffffff, roughness: 0.55, metalness: 0.0, emissive: 0x1f5416, emissiveIntensity: 0.1 });
+    var skinDark = new THREE.MeshStandardMaterial({ color: 0x4a9e34, roughness: 0.6, emissive: 0x184010, emissiveIntensity: 0.1 });
+    var skinLight = new THREE.MeshStandardMaterial({ color: 0x9fe067, roughness: 0.48, emissive: 0x2c6a20, emissiveIntensity: 0.12 });
+    var shellMat = new THREE.MeshStandardMaterial({ map: shellTexture(), color: 0xffffff, roughness: 0.6, metalness: 0.04 });
+    var shellRim = new THREE.MeshStandardMaterial({ color: 0xc79a52, roughness: 0.68 });
+    var scute = new THREE.MeshStandardMaterial({ color: 0x8a5a2c, roughness: 0.62 });
+    var plastron = new THREE.MeshStandardMaterial({ color: 0xf4c73c, roughness: 0.42, emissive: 0x5a4008, emissiveIntensity: 0.12 });
+    var plastronLine = new THREE.MeshStandardMaterial({ color: 0xbe8f26, roughness: 0.55 });
+    var maskMat = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.38, metalness: 0.04, emissive: maskHex, emissiveIntensity: 0.24 });
+    var maskDark = new THREE.MeshStandardMaterial({ color: maskHex, roughness: 0.5, emissive: maskHex, emissiveIntensity: 0.12 });
+    var eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf3f6fb, roughness: 0.12, metalness: 0.0, envMapIntensity: 1.3 });
+    var pupilMat = new THREE.MeshStandardMaterial({ color: 0x0a0a10, roughness: 0.14, metalness: 0.0, envMapIntensity: 1.6 });
+    var irisMat = new THREE.MeshStandardMaterial({ color: 0x6f89ad, roughness: 0.22, metalness: 0.1, emissive: 0x0c1420, emissiveIntensity: 0.3, envMapIntensity: 1.5 });
     var shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    var mouthMat = new THREE.MeshStandardMaterial({ color: 0x7a2a2a, roughness: 0.5 });
-    var beltMat = new THREE.MeshStandardMaterial({ color: 0x3a2412, roughness: 0.7 });
+    var mouthMat = new THREE.MeshStandardMaterial({ color: 0x6f1c20, roughness: 0.5 });
+    var tongueMat = new THREE.MeshStandardMaterial({ color: 0xf07d86, roughness: 0.5 });
+    var toothMat = new THREE.MeshStandardMaterial({ color: 0xfff6e8, roughness: 0.4 });
+    var beltMat = new THREE.MeshStandardMaterial({ color: 0x6a4526, roughness: 0.72 });
     var goldMat = new THREE.MeshStandardMaterial({ color: 0xffcf3f, roughness: 0.28, metalness: 0.75, emissive: 0x5a3d00, emissiveIntensity: 0.25 });
     var inkMat = new THREE.MeshStandardMaterial({ color: 0x1a1208, roughness: 0.5 });
 
-    // ================= LEGS (stubby) =================
+    // colored wrap band helper (wrists / knees) — matches the mask
+    function wrapBand(radius, tube, mat) {
+      var b = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 8, 18), mat);
+      b.rotation.x = Math.PI / 2; return b;
+    }
+
+    // ================= LEGS (chunky) =================
     function makeLeg(side) {
-      var thigh = limbSeg(0.15, 0.13, 0.3, skin);
-      thigh.position.set(side * 0.22, 0.55, 0.02);
-      addOutline(thigh.userData.limbMesh, 1.08);
+      var thigh = limbSeg(0.17, 0.155, 0.3, skin);
+      thigh.position.set(side * 0.24, 0.56, 0.02);
+      addOutline(thigh.userData.limbMesh, 1.07);
       bob.add(thigh);
-      var kneePad = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), maskMat);
-      kneePad.position.y = -0.3; thigh.add(kneePad);
-      var shin = limbSeg(0.13, 0.12, 0.28, skin);
-      shin.position.y = -0.3; addOutline(shin.userData.limbMesh, 1.08); thigh.add(shin);
+      var shin = limbSeg(0.155, 0.14, 0.28, skin);
+      shin.position.y = -0.3; addOutline(shin.userData.limbMesh, 1.07); thigh.add(shin);
+      // knee wrap (mask colour) at the joint
+      var knee = wrapBand(0.16, 0.05, maskMat); knee.position.y = -0.01; shin.add(knee);
+      var kneePad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), maskMat);
+      kneePad.position.set(0, -0.01, -0.13); kneePad.scale.set(1, 1, 0.7); shin.add(kneePad);
       var foot = threeToeFoot(skin, maskMat);
       foot.position.set(0, -0.28, -0.02); shin.add(foot);
       return { thigh: thigh, shin: shin, foot: foot };
@@ -352,134 +391,156 @@
 
     // ================= TORSO =================
     var torso = new THREE.Group();
-    torso.position.y = 0.95;
+    torso.position.y = 0.98;
     bob.add(torso);
 
-    var body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 26, 22), skin);
-    body.scale.set(1.05, 1.12, 0.92); addOutline(body, 1.05); torso.add(body);
+    var body = new THREE.Mesh(new THREE.SphereGeometry(0.52, 28, 24), skin);
+    body.scale.set(1.04, 1.16, 0.95); addOutline(body, 1.05); torso.add(body);
 
-    // cream plastron (belly)
-    var plas = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.6), plastron);
-    plas.rotation.x = Math.PI; plas.position.set(0, 0.02, -0.28); plas.scale.set(1.05, 1.35, 0.62);
-    torso.add(plas);
-    [0.22, 0.07, -0.08, -0.22].forEach(function (yy, idx) {
-      var seam = new THREE.Mesh(new THREE.BoxGeometry(0.46 - Math.abs(idx - 1.5) * 0.06, 0.016, 0.02), plastronLine);
-      seam.position.set(0, yy, -0.46); torso.add(seam);
+    // golden plastron (chest + belly plate) with muscle segmentation
+    var plas = new THREE.Mesh(new THREE.SphereGeometry(0.45, 26, 20), plastron);
+    plas.scale.set(0.94, 1.12, 0.6); plas.position.set(0, -0.04, -0.3); torso.add(plas);
+    // pecs
+    [-1, 1].forEach(function (sx) {
+      var pec = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 14), plastron);
+      pec.scale.set(1.0, 0.82, 0.5); pec.position.set(sx * 0.15, 0.2, -0.5); torso.add(pec);
     });
-    var midSeam = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.5, 0.02), plastronLine);
-    midSeam.position.set(0, 0, -0.47); torso.add(midSeam);
+    // grooves: center seam, pec V, ab lines
+    var cseam = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.46, 0.03), plastronLine);
+    cseam.position.set(0, -0.04, -0.58); torso.add(cseam);
+    [-1, 1].forEach(function (sx) {
+      var vg = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.22, 0.03), plastronLine);
+      vg.position.set(sx * 0.085, 0.22, -0.55); vg.rotation.z = sx * 0.7; torso.add(vg);
+    });
+    [0.02, -0.11, -0.23].forEach(function (yy, i) {
+      var w = 0.32 - i * 0.05;
+      var ab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, 0.03), plastronLine);
+      ab.position.set(0, yy, -0.585 + i * 0.015); torso.add(ab);
+    });
 
-    // carapace shell
-    var shell = new THREE.Group(); shell.position.set(0, 0.06, 0.32); torso.add(shell);
-    var dome = new THREE.Mesh(new THREE.SphereGeometry(0.58, 26, 18, 0, Math.PI * 2, 0, Math.PI * 0.6), shellMat);
-    dome.rotation.x = Math.PI / 2; dome.scale.set(1.15, 1.0, 1.3);
+    // carapace shell (brown, on the back)
+    var shell = new THREE.Group(); shell.position.set(0, 0.06, 0.34); torso.add(shell);
+    var dome = new THREE.Mesh(new THREE.SphereGeometry(0.6, 26, 18, 0, Math.PI * 2, 0, Math.PI * 0.6), shellMat);
+    dome.rotation.x = Math.PI / 2; dome.scale.set(1.16, 1.0, 1.32);
     var domeOut = new THREE.Mesh(dome.geometry, outlineMat()); domeOut.scale.setScalar(1.05); domeOut.userData.noShadow = true; dome.add(domeOut);
     shell.add(dome);
-    var rim = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.1, 12, 30), shellRim);
-    rim.rotation.x = Math.PI / 2; rim.position.z = -0.04; shell.add(rim);
-    var centerScute = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 0.09, 6), scute);
-    centerScute.rotation.x = Math.PI / 2; centerScute.position.set(0, 0.06, 0.46); shell.add(centerScute);
+    var rim = new THREE.Mesh(new THREE.TorusGeometry(0.57, 0.11, 12, 30), shellRim);
+    rim.rotation.x = Math.PI / 2; rim.position.z = -0.05; shell.add(rim);
+    var centerScute = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.09, 6), scute);
+    centerScute.rotation.x = Math.PI / 2; centerScute.position.set(0, 0.06, 0.48); shell.add(centerScute);
     for (var p = 0; p < 6; p++) {
       var ang = (p / 6) * Math.PI * 2 + Math.PI / 6;
-      var sc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.08, 6), scute);
+      var sc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.08, 6), scute);
       sc.rotation.x = Math.PI / 2 - 0.35; sc.rotation.z = ang;
-      sc.position.set(Math.cos(ang) * 0.33, Math.sin(ang) * 0.24 + 0.04, 0.38); shell.add(sc);
-    }
-    for (var rb = 0; rb < 10; rb++) {
-      var ba = (rb / 10) * Math.PI * 2;
-      var bump = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), shellRim);
-      bump.position.set(Math.cos(ba) * 0.58, Math.sin(ba) * 0.46, 0.0); shell.add(bump);
+      sc.position.set(Math.cos(ang) * 0.34, Math.sin(ang) * 0.25 + 0.04, 0.4); shell.add(sc);
     }
 
     // belt + buckle
-    var belt = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.055, 8, 26), beltMat);
-    belt.rotation.x = Math.PI / 2; belt.position.y = -0.3; belt.scale.set(1.02, 1, 0.92); torso.add(belt);
+    var belt = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 8, 26), beltMat);
+    belt.rotation.x = Math.PI / 2; belt.position.y = -0.32; belt.scale.set(1.02, 1, 0.94); torso.add(belt);
     var buckle = beltLetter(def.letter, goldMat, inkMat);
-    buckle.position.set(0, -0.3, -0.5); torso.add(buckle);
+    buckle.position.set(0, -0.32, -0.54); torso.add(buckle);
 
     // ================= HEAD (big & cute) =================
     var head = new THREE.Group();
-    head.position.set(0, 0.62, -0.06); torso.add(head);
+    head.position.set(0, 0.64, -0.04); torso.add(head);
 
-    var skull = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 24), skin);
-    skull.scale.set(1.12, 1.0, 1.05); addOutline(skull, 1.05); head.add(skull);
+    var skull = new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 24), skin);
+    skull.scale.set(1.12, 1.02, 1.06); addOutline(skull, 1.05); head.add(skull);
     // chubby cheeks
-    var cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), skinLight);
-    cheekL.position.set(-0.26, -0.12, -0.24); cheekL.scale.set(0.9, 0.8, 0.9); head.add(cheekL);
-    var cheekR = cheekL.clone(); cheekR.position.x = 0.26; head.add(cheekR);
-    // snout / beak
+    var cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), skinLight);
+    cheekL.position.set(-0.27, -0.14, -0.26); cheekL.scale.set(0.92, 0.8, 0.9); head.add(cheekL);
+    var cheekR = cheekL.clone(); cheekR.position.x = 0.27; head.add(cheekR);
+    // snout
     var snout = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), skinDark);
-    snout.position.set(0, -0.1, -0.38); snout.scale.set(1.2, 0.8, 1.0); head.add(snout);
-    var nL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), inkMat); nL.position.set(-0.045, -0.07, -0.47); head.add(nL);
-    var nR = nL.clone(); nR.position.x = 0.045; head.add(nR);
+    snout.position.set(0, -0.11, -0.4); snout.scale.set(1.25, 0.82, 1.0); head.add(snout);
+    var nL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), inkMat); nL.position.set(-0.05, -0.09, -0.49); head.add(nL);
+    var nR = nL.clone(); nR.position.x = 0.05; head.add(nR);
 
-    // mask band wrapping the eyes
-    var band = new THREE.Mesh(new THREE.CylinderGeometry(0.415, 0.415, 0.26, 30, 1, true), maskMat);
-    band.rotation.x = Math.PI / 2; band.position.set(0, 0.1, 0.02); band.scale.set(1.03, 1, 1.06); head.add(band);
-    // brow strip
-    var brow = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.045, 8, 20, Math.PI * 1.1), maskDark);
-    brow.rotation.set(Math.PI / 2 + 0.25, 0, 0); brow.position.set(0, 0.2, -0.18); head.add(brow);
-    // knot at back
-    var knot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), maskMat); knot.position.set(0, 0.12, 0.38); head.add(knot);
-    var knotL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), maskDark); knotL.position.set(-0.06, 0.12, 0.42); head.add(knotL);
-    var knotR = knotL.clone(); knotR.position.x = 0.06; head.add(knotR);
+    // ---- bandana mask (classic TMNT: arches over the brow, points down the nose) ----
+    var band = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.32, 32, 1, true), maskMat);
+    band.position.set(0, 0.15, 0.02); band.scale.set(1.05, 1, 1.06); head.add(band);
+    // forehead patch — the mask rises up the centre of the brow
+    var foreMask = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 14), maskMat);
+    foreMask.scale.set(1.16, 0.72, 0.55); foreMask.position.set(0, 0.31, -0.33); head.add(foreMask);
+    // downward point between the eyes, onto the bridge of the nose
+    var bridge = new THREE.Mesh(new THREE.ConeGeometry(0.078, 0.22, 4), maskMat);
+    bridge.position.set(0, 0.03, -0.42); bridge.rotation.x = Math.PI - 0.12; head.add(bridge);
+    // soft brow ridge arching over each eye
+    [-1, 1].forEach(function (sx) {
+      var brow = new THREE.Mesh(new THREE.SphereGeometry(0.135, 14, 12), maskMat);
+      brow.scale.set(1.05, 0.5, 0.55); brow.position.set(sx * 0.17, 0.29, -0.33); brow.rotation.z = sx * 0.32; head.add(brow);
+    });
+    // knot at back + two flowing tails
+    var knot = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat); knot.position.set(0, 0.14, 0.4); head.add(knot);
+    var knotL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), maskDark); knotL.position.set(-0.07, 0.14, 0.44); head.add(knotL);
+    var knotR = knotL.clone(); knotR.position.x = 0.07; head.add(knotR);
 
-    // two flowing knotted tails
+    // two flowing knotted tails (wide tapering ribbons)
     function makeTail(sideX) {
       var tail = new THREE.Group();
-      tail.position.set(sideX, 0.12, 0.4);
+      tail.position.set(sideX, 0.14, 0.44);
       var segs = [];
       var prev = tail;
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 6; i++) {
         var seg = new THREE.Group();
-        seg.position.set(0, 0, 0.14);
-        var w = 0.16 - i * 0.02;
-        var m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.15), i % 2 ? maskDark : maskMat);
-        m.position.z = 0.075; seg.add(m);
+        seg.position.set(0, 0, 0.15);
+        var w = 0.2 - i * 0.022;
+        var m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.055, 0.16), i % 2 ? maskDark : maskMat);
+        m.position.z = 0.08; seg.add(m);
         prev.add(seg); prev = seg; segs.push(seg);
       }
       tail.userData.segs = segs;
       return tail;
     }
-    var tailL = makeTail(-0.1), tailR = makeTail(0.1);
+    var tailL = makeTail(-0.12), tailR = makeTail(0.12);
     head.add(tailL); head.add(tailR);
 
-    // HUGE glossy eyes
+    // HUGE glossy eyes (framed by the mask, no goggle rings)
     function makeEye(sideX) {
       var eye = new THREE.Group();
-      eye.position.set(sideX, 0.11, -0.32);
-      var wht = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 16), eyeWhiteMat);
-      wht.scale.set(1.05, 1.35, 0.85); eye.add(wht);
-      var rim = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.03, 10, 22), maskDark);
-      rim.scale.set(1.02, 1.32, 1); rim.position.z = -0.06; eye.add(rim);
-      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), pupilMat);
-      pupil.position.set(-sideX * 0.15, -0.02, -0.09); pupil.scale.set(1, 1.15, 0.8); eye.add(pupil);
-      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), new THREE.MeshBasicMaterial({ color: 0x1a2e6b }));
-      iris.position.set(-sideX * 0.15, -0.02, -0.115); iris.scale.set(1, 1.1, 0.5); eye.add(iris);
-      var shine1 = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), shineMat);
-      shine1.position.set(-sideX * 0.15 - 0.04, 0.05, -0.15); eye.add(shine1);
-      var shine2 = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), shineMat);
-      shine2.position.set(-sideX * 0.15 + 0.03, -0.05, -0.15); eye.add(shine2);
+      eye.position.set(sideX, 0.12, -0.34);
+      var wht = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 16), eyeWhiteMat);
+      wht.scale.set(1.02, 1.28, 0.9); eye.add(wht);
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.089, 16, 14), irisMat);
+      iris.position.set(-sideX * 0.05, -0.02, -0.075); iris.scale.set(1, 1.1, 0.7); eye.add(iris);
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.053, 14, 12), pupilMat);
+      pupil.position.set(-sideX * 0.05, -0.02, -0.12); pupil.scale.set(1, 1.12, 0.7); eye.add(pupil);
+      var shine1 = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 10), shineMat);
+      shine1.position.set(-sideX * 0.05 - 0.055, 0.08, -0.14); eye.add(shine1);
+      var shine2 = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 8), shineMat);
+      shine2.position.set(-sideX * 0.05 + 0.04, -0.06, -0.15); eye.add(shine2);
       return eye;
     }
-    var eyeL = makeEye(-0.16), eyeR = makeEye(0.16);
+    var eyeL = makeEye(-0.17), eyeR = makeEye(0.17);
     head.add(eyeL); head.add(eyeR);
 
-    // gentle smile
-    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 16, Math.PI), mouthMat);
-    smile.position.set(0, -0.2, -0.34); smile.rotation.set(Math.PI + 0.15, 0, 0); head.add(smile);
+    // big open grin
+    var mouth = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 14), mouthMat);
+    mouth.scale.set(1.46, 0.64, 0.42); mouth.position.set(0, -0.25, -0.34); head.add(mouth);
+    // upturned smile corners
+    [-1, 1].forEach(function (sx) {
+      var corner = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), skinDark);
+      corner.scale.set(0.8, 0.8, 0.6); corner.position.set(sx * 0.2, -0.21, -0.36); head.add(corner);
+    });
+    // upper teeth strip (thin)
+    var teeth = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.034, 0.04), toothMat);
+    teeth.position.set(0, -0.185, -0.45); teeth.rotation.x = 0.12; head.add(teeth);
+    // tongue
+    var tongue = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), tongueMat);
+    tongue.scale.set(1.15, 0.5, 0.7); tongue.position.set(0, -0.29, -0.4); head.add(tongue);
 
     // ================= ARMS =================
     function makeArm(side) {
-      var upper = limbSeg(0.13, 0.11, 0.34, skin);
-      upper.position.set(side * 0.5, 1.18, 0.0);
-      upper.rotation.z = side * 0.32; addOutline(upper.userData.limbMesh, 1.08); bob.add(upper);
-      var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), skinDark);
-      shoulder.position.y = 0.03; upper.add(shoulder);
-      var elbowPad = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), maskMat);
-      elbowPad.position.y = -0.34; upper.add(elbowPad);
-      var fore = limbSeg(0.11, 0.09, 0.3, skin);
-      fore.position.y = -0.34; addOutline(fore.userData.limbMesh, 1.08); upper.add(fore);
+      var upper = limbSeg(0.15, 0.13, 0.34, skin);
+      upper.position.set(side * 0.52, 1.22, 0.0);
+      upper.rotation.z = side * 0.32; addOutline(upper.userData.limbMesh, 1.07); bob.add(upper);
+      var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), skin);
+      shoulder.position.y = 0.04; upper.add(shoulder);
+      var fore = limbSeg(0.13, 0.105, 0.3, skin);
+      fore.position.y = -0.34; addOutline(fore.userData.limbMesh, 1.07); upper.add(fore);
+      // forearm wrap (mask colour)
+      var wrap = wrapBand(0.135, 0.05, maskMat); wrap.position.y = -0.02; fore.add(wrap);
       var fist = threeFingerHand(skin, maskMat);
       fist.position.y = -0.32; fore.add(fist);
       return { upper: upper, fore: fore, fist: fist };
@@ -1157,11 +1218,45 @@
   }
 
   // =====================================================================
+  //  ENVIRONMENT (image-based lighting for reflections)
+  // =====================================================================
+
+  function makeEnvironment(renderer) {
+    if (!THREE.PMREMGenerator) return null;
+    var pmrem = new THREE.PMREMGenerator(renderer);
+    var s = new THREE.Scene();
+    // gradient sky dome
+    var sky = new THREE.Mesh(
+      new THREE.SphereGeometry(50, 24, 12),
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: { top: { value: new THREE.Color(0xdfefff) }, mid: { value: new THREE.Color(0x8fb6d8) }, bot: { value: new THREE.Color(0x223142) } },
+        vertexShader: "varying vec3 vp; void main(){ vp = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        fragmentShader: "varying vec3 vp; uniform vec3 top; uniform vec3 mid; uniform vec3 bot; void main(){ float h = normalize(vp).y; vec3 c = h > 0.0 ? mix(mid, top, h) : mix(mid, bot, -h); gl_FragColor = vec4(c, 1.0); }"
+      })
+    );
+    s.add(sky);
+    // soft bright panels → shaped highlights on glossy surfaces
+    function panel(w, h, x, y, z, col) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: col }));
+      m.position.set(x, y, z); m.lookAt(0, 0, 0); s.add(m);
+    }
+    panel(22, 22, 0, 34, 2, 0xffffff);       // big soft key overhead
+    panel(16, 26, -26, 8, 14, 0xbfd8ff);     // cool side
+    panel(14, 22, 24, 5, -12, 0xffe6c0);     // warm rim
+    var tex = pmrem.fromScene(s, 0.04).texture;
+    pmrem.dispose();
+    sky.geometry.dispose(); sky.material.dispose();
+    return tex;
+  }
+
+  // =====================================================================
   //  export
   // =====================================================================
 
   global.GameArt = {
     worldTheme: worldTheme,
+    makeEnvironment: makeEnvironment,
     createTurtle: createTurtle,
     animateTurtleIdle: animateTurtleIdle,
     animateTurtleRun: animateTurtleRun,

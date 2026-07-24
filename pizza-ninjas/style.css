@@ -186,27 +186,16 @@ html, body {
 .turtle-card[data-id="don"]   { --c: var(--don); }
 .turtle-card[data-id="mikey"] { --c: var(--mikey); }
 .turtle-card:active { transform: scale(.95); }
-.turtle-card .face {
-  width: clamp(52px, 15vw, 82px); height: clamp(52px, 15vw, 82px);
+.turtle-card .portrait {
+  width: clamp(60px, 17vw, 96px); height: clamp(60px, 17vw, 96px);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 38% 42%, #fff 0 11%, transparent 12%),
-    radial-gradient(circle at 62% 42%, #fff 0 11%, transparent 12%),
-    radial-gradient(circle at 38% 44%, #123 0 5%, transparent 6%),
-    radial-gradient(circle at 62% 44%, #123 0 5%, transparent 6%),
-    linear-gradient(180deg, var(--c) 0 48%, #4ec85a 49% 100%);
-  box-shadow: 0 6px 0 rgba(0,0,0,.25), inset 0 0 0 3px rgba(255,255,255,.5);
-  position: relative;
+  object-fit: cover;
+  display: block; margin: 0 auto;
+  box-shadow: 0 6px 0 rgba(0,0,0,.25), inset 0 0 0 3px rgba(255,255,255,.45);
+  -webkit-user-drag: none; user-select: none;
+  transition: transform .12s ease;
 }
-.turtle-card .face::after {
-  content: attr(data-letter);
-  position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
-  font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: .8rem;
-  color: #4a2a00; background: var(--cheese);
-  min-width: 1.3rem; padding: 0 .25rem; height: 1.15rem;
-  border-radius: 6px; display: grid; place-items: center;
-  box-shadow: 0 2px 0 rgba(0,0,0,.3);
-}
+.turtle-card:active .portrait { transform: scale(1.05) rotate(-3deg); }
 .turtle-card .tname { font-size: clamp(.95rem, 3.6vw, 1.3rem); font-weight: 800; margin-top: .35rem; }
 .turtle-card .tsuper { font-size: clamp(.7rem, 2.6vw, .85rem); opacity: .9; }
 
